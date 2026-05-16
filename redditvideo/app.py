@@ -46,7 +46,7 @@ with st.sidebar:
     st.markdown("---")
     page = st.radio(
         "Navigation",
-        ["🔍 Search Reddit", "✍️ Script Generator", "🎙️ Voiceover", "🖼️ Images", "🎥 Assemble Video", "📊 Analytics"],
+        ["⚡ Pipeline Runner", "🔍 Search Reddit", "✍️ Script Generator", "🎙️ Voiceover", "🖼️ Images", "🎥 Assemble Video", "📊 Analytics"],
         label_visibility="collapsed",
     )
     st.markdown("---")
@@ -647,3 +647,339 @@ elif page == "📊 Analytics":
             os.remove(Path(__file__).parent / "data" / "analytics.json")
             st.success("Analytics data cleared.")
             st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 0 — PIPELINE RUNNER
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "⚡ Pipeline Runner":
+    st.header("⚡ Pipeline Runner")
+    st.caption("Configure and run any combination of steps from one screen. Toggle off the steps you don't need.")
+
+    # ── Step toggles ──────────────────────────────────────────────────────────
+    st.subheader("Steps to run")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    run_search   = c1.toggle("1 · Search Reddit",  value=True)
+    run_script   = c2.toggle("2 · Script",          value=True,  disabled=not run_search)
+    run_voice    = c3.toggle("3 · Voiceover",        value=True,  disabled=not run_script)
+    run_images   = c4.toggle("4 · Images",           value=True,  disabled=not run_script)
+    run_video    = c5.toggle("5 · Assemble Video",   value=True,  disabled=not (run_voice and run_images))
+
+    st.markdown("---")
+
+    # ── Step 1 config: Reddit ─────────────────────────────────────────────────
+    if run_search:
+        st.subheader("1 · Reddit Search")
+        col_a, col_b, col_c = st.columns([3, 1, 1])
+        with col_a:
+            pr_subreddits = st.text_input("Subreddit(s)", placeholder="worldnews, AskReddit", key="pr_subs")
+        with col_b:
+            pr_sort = st.selectbox("Sort", ["Top", "Hot"], key="pr_sort")
+        with col_c:
+            pr_time = st.selectbox("Time", ["day", "week", "month", "year", "all"], index=1,
+                                   key="pr_time", disabled=(pr_sort == "Hot"))
+        col_d, col_e = st.columns(2)
+        with col_d:
+            pr_limit  = st.slider("Max posts", 1, 25, 5, key="pr_limit")
+        with col_e:
+            pr_min_score = st.number_input("Min score", 0, value=0, step=100, key="pr_min_score")
+        pr_pick = st.selectbox("Which post to use", ["#1 (highest score)", "#2", "#3", "#4", "#5",
+                                                      "Let me pick after search"], key="pr_pick")
+
+    # ── Step 2 config: Script ─────────────────────────────────────────────────
+    if run_script:
+        st.markdown("---")
+        st.subheader("2 · Script")
+        col_p, col_g = st.columns(2)
+        with col_p:
+            pr_preset = st.selectbox("Platform Preset", list(PRESETS.keys()), key="pr_preset")
+        with col_g:
+            pr_genre = st.selectbox("Genre", [
+                "Informative / Educational", "Entertaining / Funny",
+                "Shocking / Controversial", "Heartwarming / Inspirational",
+                "News / Current Events", "Opinion / Commentary",
+                "Story Time / Narrative", "Mystery / Suspense",
+            ], key="pr_genre")
+
+        if pr_preset == "Custom":
+            pr_duration  = st.slider("Duration (s)", 15, 600, 90, key="pr_dur")
+            pr_style     = st.text_input("Style notes", key="pr_style")
+        else:
+            _p = PRESETS[pr_preset]
+            st.caption(f"⏱️ {_p['duration_sec']}s · ~{_p['word_count']} words · {_p['aspect_ratio']} · {_p['platform']}")
+            pr_duration, pr_style = _p["duration_sec"], ""
+
+        col_prov, col_mod = st.columns(2)
+        with col_prov:
+            pr_provider_label = st.selectbox("AI Provider", list(PROVIDERS.keys()), key="pr_prov")
+            pr_provider_key   = PROVIDERS[pr_provider_label]
+        with col_mod:
+            if pr_provider_key == "openai_replit":
+                pr_model = st.selectbox("Model", OPENAI_REPLIT_MODELS, index=1, key="pr_model_oa")
+            elif pr_provider_key == "openrouter_replit":
+                pr_model = st.selectbox("Model", OPENROUTER_MODELS, key="pr_model_or")
+            else:
+                pr_model = st.text_input("Model name", "llama3.3", key="pr_model_ol")
+
+        pr_ollama_url = pr_ollama_key = ""
+        if pr_provider_key == "ollama_cloud":
+            pr_ollama_url = st.text_input("Ollama Cloud base URL",
+                                          value=os.environ.get("OLLAMA_CLOUD_BASE_URL", ""),
+                                          placeholder="https://your-host/v1", key="pr_ol_url")
+            pr_ollama_key = st.text_input("API key (optional)", type="password",
+                                          value=os.environ.get("OLLAMA_CLOUD_API_KEY", ""), key="pr_ol_key")
+
+    # ── Step 3 config: Voiceover ──────────────────────────────────────────────
+    if run_voice:
+        st.markdown("---")
+        st.subheader("3 · Voiceover")
+        col_l, col_s2 = st.columns(2)
+        with col_l:
+            pr_lang  = st.selectbox("Language", list(GTTS_LANGUAGES.keys()), key="pr_lang")
+        with col_s2:
+            pr_speed = st.selectbox("Speed", ["Normal", "Slow"], key="pr_speed")
+
+    # ── Step 4 config: Images ─────────────────────────────────────────────────
+    if run_images:
+        st.markdown("---")
+        st.subheader("4 · Images")
+        col_i1, col_i2 = st.columns(2)
+        with col_i1:
+            pr_use_stock = st.toggle("Use stock photos", value=True, key="pr_stock")
+        with col_i2:
+            pr_aspect = st.selectbox("Aspect ratio", ["16:9", "9:16", "1:1", "4:3"], key="pr_aspect")
+        if not os.environ.get("UNSPLASH_ACCESS_KEY") and not os.environ.get("PEXELS_API_KEY"):
+            st.caption("No stock photo API key set — stylized placeholders will be used.")
+
+    # ── Step 5 config: Video ──────────────────────────────────────────────────
+    if run_video:
+        st.markdown("---")
+        st.subheader("5 · Video Assembly")
+        col_v1, col_v2, col_v3 = st.columns(3)
+        with col_v1:
+            pr_ken_burns  = st.toggle("Ken Burns effect", value=True, key="pr_kb")
+        with col_v2:
+            pr_fps        = st.selectbox("FPS", [24, 30, 60], index=1, key="pr_fps")
+        with col_v3:
+            pr_transition = st.slider("Transition (s)", 0.0, 2.0, 0.5, 0.1, key="pr_trans")
+
+    st.markdown("---")
+
+    # ── Determine the last step label ─────────────────────────────────────────
+    last_steps = []
+    if run_search:  last_steps.append("Reddit search")
+    if run_script:  last_steps.append("script")
+    if run_voice:   last_steps.append("voiceover")
+    if run_images:  last_steps.append("images")
+    if run_video:   last_steps.append("video assembly")
+    run_label = " → ".join(last_steps) if last_steps else "nothing"
+
+    btn_label = f"▶ Run: {run_label}"
+    if not last_steps:
+        st.warning("Enable at least one step above.")
+    elif st.button(btn_label, type="primary", use_container_width=True):
+
+        # ── Result placeholders ────────────────────────────────────────────────
+        status_box   = st.empty()
+        progress_bar = st.progress(0)
+        results_area = st.container()
+        total_steps  = len(last_steps)
+        step_num     = 0
+
+        def advance(label: str):
+            nonlocal step_num
+            step_num += 1
+            progress_bar.progress(step_num / total_steps)
+            status_box.info(f"**Step {step_num}/{total_steps}:** {label}")
+
+        run_ok = True  # gate — stops pipeline on failure
+
+        # ── STEP 1: Reddit search ──────────────────────────────────────────────
+        if run_search and run_ok:
+            advance("Searching Reddit...")
+            subs = [s.strip() for s in pr_subreddits.split(",") if s.strip()]
+            if not subs:
+                results_area.error("Enter at least one subreddit.")
+                run_ok = False
+            else:
+                try:
+                    if pr_sort == "Top":
+                        posts = fetch_top_posts(subs, pr_time, pr_limit, pr_min_score)
+                    else:
+                        posts = fetch_hot_posts(subs, pr_limit)
+
+                    posts = [p for p in posts if "error" not in p]
+                    if not posts:
+                        results_area.error("No posts found. Try different subreddits or filters.")
+                        run_ok = False
+                    else:
+                        log_search(subs, pr_time if pr_sort == "Top" else "hot", len(posts))
+
+                        # pick the post
+                        if pr_pick == "Let me pick after search":
+                            with results_area:
+                                st.subheader("Select a post")
+                                chosen_idx = st.radio(
+                                    "Post",
+                                    range(len(posts)),
+                                    format_func=lambda i: f"#{i+1} — {posts[i]['title'][:70]} | ⬆️ {posts[i]['score']:,}",
+                                    key="pr_chosen",
+                                )
+                                if st.button("Confirm selection", key="pr_confirm"):
+                                    st.session_state.selected_post = posts[chosen_idx]
+                                    st.rerun()
+                                run_ok = False  # halt until user picks
+                        else:
+                            pick_idx = int(pr_pick[1]) - 1
+                            pick_idx = min(pick_idx, len(posts) - 1)
+                            st.session_state.selected_post = posts[pick_idx]
+                            post = posts[pick_idx]
+
+                            with results_area:
+                                st.success(f"✅ Post selected: **{post['title'][:80]}**")
+                                st.caption(f"r/{post['subreddit']} · ⬆️ {post['score']:,} · 💬 {post['num_comments']:,}")
+
+                except Exception as ex:
+                    results_area.error(f"Reddit error: {ex}")
+                    run_ok = False
+        else:
+            post = st.session_state.selected_post
+
+        # ── STEP 2: Script ─────────────────────────────────────────────────────
+        if run_script and run_ok:
+            advance(f"Generating script with {pr_provider_label}...")
+            try:
+                script_result = generate_script(
+                    post=post,
+                    preset_name=pr_preset,
+                    genre=pr_genre,
+                    custom_duration=pr_duration,
+                    custom_style=pr_style,
+                    provider=pr_provider_key,
+                    model=pr_model,
+                    ollama_base_url=pr_ollama_url,
+                    ollama_api_key=pr_ollama_key,
+                )
+                st.session_state.script = script_result
+                log_script(post["title"], script_result["platform"], pr_genre, script_result["estimated_word_count"])
+
+                with results_area:
+                    with st.expander(f"✅ Script ready ({script_result['estimated_word_count']} words · {script_result['provider']} / {script_result['model']})", expanded=False):
+                        st.caption("**Hook:**")
+                        st.write(script_result["hook"])
+                        st.caption("**Main Script:**")
+                        st.write(script_result["main_script"])
+                        st.caption("**CTA:**")
+                        st.write(script_result["cta"])
+            except Exception as ex:
+                results_area.error(f"Script error: {ex}")
+                run_ok = False
+        else:
+            script_result = st.session_state.script
+
+        # ── STEP 3: Voiceover ──────────────────────────────────────────────────
+        if run_voice and run_ok:
+            advance("Generating voiceover...")
+            try:
+                voice_result = generate_voiceover(
+                    script=script_result["full_script"],
+                    language=pr_lang,
+                    speed=pr_speed,
+                )
+                if "error" in voice_result:
+                    results_area.error(f"Voiceover error: {voice_result['error']}")
+                    run_ok = False
+                else:
+                    st.session_state.voiceover = voice_result
+                    with results_area:
+                        st.success(f"✅ Voiceover: {voice_result['duration_sec']:.1f}s · {pr_lang}")
+                        if os.path.exists(voice_result["path"]):
+                            with open(voice_result["path"], "rb") as af:
+                                st.audio(af.read(), format="audio/mp3")
+            except Exception as ex:
+                results_area.error(f"Voiceover error: {ex}")
+                run_ok = False
+        else:
+            voice_result = st.session_state.voiceover
+
+        # ── STEP 4: Images ─────────────────────────────────────────────────────
+        if run_images and run_ok:
+            advance(f"Fetching {len(script_result.get('image_prompts', []))} images...")
+            try:
+                prompts = script_result.get("image_prompts", [])
+                if not prompts:
+                    prompts = [post.get("title", "abstract background")]
+                image_paths = prepare_images_for_video(prompts, use_stock=pr_use_stock, aspect_ratio=pr_aspect)
+                st.session_state.images = image_paths
+
+                with results_area:
+                    st.success(f"✅ {len(image_paths)} images ready")
+                    img_cols = st.columns(min(len(image_paths), 4))
+                    for i, p in enumerate(image_paths):
+                        if os.path.exists(p):
+                            img_cols[i % 4].image(p, use_container_width=True)
+            except Exception as ex:
+                results_area.error(f"Image error: {ex}")
+                run_ok = False
+        else:
+            image_paths = st.session_state.images
+
+        # ── STEP 5: Video Assembly ─────────────────────────────────────────────
+        if run_video and run_ok:
+            advance("Assembling video with FFmpeg...")
+            try:
+                safe_title = "".join(
+                    c if c.isalnum() or c in "-_" else "_"
+                    for c in post.get("title", "video")[:40]
+                )
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                out_filename = f"{safe_title}_{ts}.mp4"
+
+                aspect_to_use = pr_aspect if run_images else script_result.get("aspect_ratio", "16:9")
+
+                video_result = assemble_video(
+                    image_paths=image_paths,
+                    audio_path=voice_result["path"],
+                    output_filename=out_filename,
+                    aspect_ratio=aspect_to_use,
+                    ken_burns=pr_ken_burns,
+                    transition_duration=pr_transition,
+                    fps=pr_fps,
+                )
+                if "error" in video_result:
+                    results_area.error(f"Video error: {video_result['error']}")
+                    run_ok = False
+                else:
+                    st.session_state.video = video_result
+                    log_video(
+                        post_title=post.get("title", ""),
+                        platform=script_result["platform"],
+                        genre=pr_genre,
+                        duration_sec=video_result["duration_sec"],
+                        file_size_mb=video_result["file_size_mb"],
+                        video_path=video_result["path"],
+                        audio_path=voice_result["path"],
+                        num_images=len(image_paths),
+                    )
+                    with results_area:
+                        st.success(f"✅ Video assembled: {video_result['duration_sec']:.1f}s · {video_result['file_size_mb']} MB · {video_result['resolution']}")
+                        vpath = video_result["path"]
+                        if os.path.exists(vpath):
+                            with open(vpath, "rb") as vf:
+                                vbytes = vf.read()
+                            st.video(vbytes)
+                            st.download_button(
+                                "⬇️ Download Video",
+                                data=vbytes,
+                                file_name=video_result["filename"],
+                                mime="video/mp4",
+                                use_container_width=True,
+                            )
+            except Exception as ex:
+                results_area.error(f"Video assembly error: {ex}")
+                run_ok = False
+
+        # ── Done ───────────────────────────────────────────────────────────────
+        if run_ok and last_steps:
+            progress_bar.progress(1.0)
+            status_box.success(f"✅ Pipeline complete — ran: {run_label}")

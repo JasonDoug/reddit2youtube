@@ -8,6 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
 from datetime import datetime
+import time
 
 from src.reddit import fetch_top_posts, fetch_hot_posts, search_subreddits
 from src.script_generator import generate_script, PRESETS, PROVIDERS, OPENROUTER_MODELS, OPENAI_REPLIT_MODELS
@@ -654,7 +655,7 @@ elif page == "📊 Analytics":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "⚡ Pipeline Runner":
     st.header("⚡ Pipeline Runner")
-    st.caption("Configure and run any combination of steps from one screen. Toggle off the steps you don't need.")
+    st.caption("Configure which steps to run, hit ▶ Run, and watch live granular progress for every stage.")
 
     # ── Step toggles ──────────────────────────────────────────────────────────
     st.subheader("Steps to run")
@@ -765,7 +766,7 @@ elif page == "⚡ Pipeline Runner":
 
     st.markdown("---")
 
-    # ── Determine the last step label ─────────────────────────────────────────
+    # ── Determine active steps ─────────────────────────────────────────────────
     last_steps = []
     if run_search:  last_steps.append("Reddit search")
     if run_script:  last_steps.append("script")
@@ -774,212 +775,426 @@ elif page == "⚡ Pipeline Runner":
     if run_video:   last_steps.append("video assembly")
     run_label = " → ".join(last_steps) if last_steps else "nothing"
 
-    btn_label = f"▶ Run: {run_label}"
+    # ── Visual pipeline map (always visible) ───────────────────────────────────
+    STEP_DEFS = [
+        ("🔍", "Search Reddit", run_search),
+        ("✍️", "Script",        run_script),
+        ("🎙️", "Voiceover",     run_voice),
+        ("🖼️", "Images",        run_images),
+        ("🎥", "Video",         run_video),
+    ]
+
+    map_cols = st.columns(len(STEP_DEFS))
+    for col, (icon, label, enabled) in zip(map_cols, STEP_DEFS):
+        if enabled:
+            col.markdown(f"**{icon} {label}**")
+        else:
+            col.markdown(f"~~{icon} {label}~~")
+
+    st.markdown("---")
+
+    btn_label = f"▶  Run pipeline  ({run_label})"
     if not last_steps:
         st.warning("Enable at least one step above.")
     elif st.button(btn_label, type="primary", use_container_width=True):
 
-        # ── Result placeholders ────────────────────────────────────────────────
-        status_box   = st.empty()
-        progress_bar = st.progress(0)
-        results_area = st.container()
+        run_ok    = True
+        timings   = {}          # step_name → elapsed seconds
+        pipeline_start = time.time()
+
+        # ── Overall progress bar (stays at top) ────────────────────────────────
         total_steps  = len(last_steps)
-        step_num     = 0
+        overall_bar  = st.progress(0, text="Starting pipeline…")
 
-        def advance(label: str):
-            nonlocal step_num
-            step_num += 1
-            progress_bar.progress(step_num / total_steps)
-            status_box.info(f"**Step {step_num}/{total_steps}:** {label}")
+        def _bar(n: int, label: str):
+            overall_bar.progress(n / total_steps,
+                                 text=f"Step {n}/{total_steps} — {label}")
 
-        run_ok = True  # gate — stops pipeline on failure
-
-        # ── STEP 1: Reddit search ──────────────────────────────────────────────
+        # ══ STEP 1 — REDDIT SEARCH ════════════════════════════════════════════
         if run_search and run_ok:
-            advance("Searching Reddit...")
+            t0 = time.time()
             subs = [s.strip() for s in pr_subreddits.split(",") if s.strip()]
-            if not subs:
-                results_area.error("Enter at least one subreddit.")
-                run_ok = False
-            else:
-                try:
-                    if pr_sort == "Top":
-                        posts = fetch_top_posts(subs, pr_time, pr_limit, pr_min_score)
-                    else:
-                        posts = fetch_hot_posts(subs, pr_limit)
 
-                    posts = [p for p in posts if "error" not in p]
-                    if not posts:
-                        results_area.error("No posts found. Try different subreddits or filters.")
-                        run_ok = False
-                    else:
-                        log_search(subs, pr_time if pr_sort == "Top" else "hot", len(posts))
-
-                        # pick the post
-                        if pr_pick == "Let me pick after search":
-                            with results_area:
-                                st.subheader("Select a post")
-                                chosen_idx = st.radio(
-                                    "Post",
-                                    range(len(posts)),
-                                    format_func=lambda i: f"#{i+1} — {posts[i]['title'][:70]} | ⬆️ {posts[i]['score']:,}",
-                                    key="pr_chosen",
-                                )
-                                if st.button("Confirm selection", key="pr_confirm"):
-                                    st.session_state.selected_post = posts[chosen_idx]
-                                    st.rerun()
-                                run_ok = False  # halt until user picks
-                        else:
-                            pick_idx = int(pr_pick[1]) - 1
-                            pick_idx = min(pick_idx, len(posts) - 1)
-                            st.session_state.selected_post = posts[pick_idx]
-                            post = posts[pick_idx]
-
-                            with results_area:
-                                st.success(f"✅ Post selected: **{post['title'][:80]}**")
-                                st.caption(f"r/{post['subreddit']} · ⬆️ {post['score']:,} · 💬 {post['num_comments']:,}")
-
-                except Exception as ex:
-                    results_area.error(f"Reddit error: {ex}")
+            _bar(1, "Searching Reddit…")
+            with st.status("🔍  Step 1 — Search Reddit", expanded=True) as s1:
+                if not subs:
+                    st.error("Enter at least one subreddit.")
+                    s1.update(label="❌  Step 1 — Search Reddit: no subreddit entered", state="error")
                     run_ok = False
+                else:
+                    st.write(f"**Target subreddit(s):** {', '.join('r/'+x for x in subs)}")
+                    st.write(f"**Sort:** {pr_sort}  |  **Time window:** {pr_time if pr_sort == 'Top' else 'n/a (Hot)'}")
+                    st.write(f"**Fetching up to {pr_limit} posts…**")
+                    try:
+                        if pr_sort == "Top":
+                            raw_posts = fetch_top_posts(subs, pr_time, pr_limit, 0)
+                        else:
+                            raw_posts = fetch_hot_posts(subs, pr_limit)
+
+                        errors = [p for p in raw_posts if "error" in p]
+                        all_posts = [p for p in raw_posts if "error" not in p]
+
+                        for err in errors:
+                            st.warning(f"r/{err['subreddit']}: {err['error']}")
+
+                        st.write(f"**Raw results:** {len(raw_posts)} total  |  {len(all_posts)} valid  |  {len(errors)} errors")
+
+                        # score filter
+                        if pr_min_score > 0:
+                            before = len(all_posts)
+                            all_posts = [p for p in all_posts if p.get("score", 0) >= pr_min_score]
+                            st.write(f"**Score filter ≥ {pr_min_score:,}:** {before} → {len(all_posts)} posts kept")
+
+                        if not all_posts:
+                            st.error("No posts passed the filters. Loosen score threshold or try different subreddits.")
+                            s1.update(label="❌  Step 1 — Search Reddit: no posts found", state="error")
+                            run_ok = False
+                        else:
+                            # Sort & stats
+                            all_posts.sort(key=lambda p: p.get("score", 0), reverse=True)
+                            top_score  = all_posts[0]["score"]
+                            avg_score  = sum(p["score"] for p in all_posts) // len(all_posts)
+                            top_ratio  = all_posts[0]["upvote_ratio"]
+
+                            st.write("**Top posts found:**")
+                            for i, p in enumerate(all_posts[:5]):
+                                st.markdown(
+                                    f"&nbsp;&nbsp;`#{i+1}` **{p['title'][:70]}{'…' if len(p['title'])>70 else ''}**  "
+                                    f"⬆️ {p['score']:,} · 💬 {p['num_comments']:,} · "
+                                    f"r/{p['subreddit']}"
+                                )
+
+                            # pick
+                            if pr_pick == "Let me pick after search":
+                                st.info("Pausing — choose a post below, then re-run the pipeline.")
+                                s1.update(label="⏸  Step 1 — Search Reddit: awaiting your selection", state="complete")
+                                st.session_state.posts = all_posts
+                                run_ok = False
+                            else:
+                                pick_idx = min(int(pr_pick[1]) - 1, len(all_posts) - 1)
+                                post = all_posts[pick_idx]
+                                st.session_state.selected_post = post
+                                log_search(subs, pr_time if pr_sort == "Top" else "hot", len(all_posts))
+
+                                st.markdown("---")
+                                st.write(f"**Selected post (#{pick_idx+1}):**")
+                                m1, m2, m3, m4 = st.columns(4)
+                                m1.metric("Score",    f"{post['score']:,}")
+                                m2.metric("Comments", f"{post['num_comments']:,}")
+                                m3.metric("Ratio",    f"{post['upvote_ratio']:.0%}")
+                                m4.metric("Awards",   post.get("awards", 0))
+                                st.info(f"**{post['title']}**  \nr/{post['subreddit']} · by u/{post['author']}")
+                                if post.get("selftext"):
+                                    with st.expander("Post body preview"):
+                                        st.caption(post["selftext"][:500])
+
+                                elapsed = time.time() - t0
+                                timings["search"] = elapsed
+                                s1.update(
+                                    label=f"✅  Step 1 — Search Reddit  ({elapsed:.1f}s)  ·  "
+                                          f"Selected: \"{post['title'][:55]}{'…' if len(post['title'])>55 else ''}\"",
+                                    state="complete", expanded=False,
+                                )
+                    except Exception as ex:
+                        st.error(f"Reddit API error: {ex}")
+                        s1.update(label=f"❌  Step 1 — Search Reddit: {ex}", state="error")
+                        run_ok = False
         else:
             post = st.session_state.selected_post
 
-        # ── STEP 2: Script ─────────────────────────────────────────────────────
+        # ══ STEP 2 — SCRIPT GENERATION ════════════════════════════════════════
         if run_script and run_ok:
-            advance(f"Generating script with {pr_provider_label}...")
-            try:
-                script_result = generate_script(
-                    post=post,
-                    preset_name=pr_preset,
-                    genre=pr_genre,
-                    custom_duration=pr_duration,
-                    custom_style=pr_style,
-                    provider=pr_provider_key,
-                    model=pr_model,
-                    ollama_base_url=pr_ollama_url,
-                    ollama_api_key=pr_ollama_key,
-                )
-                st.session_state.script = script_result
-                log_script(post["title"], script_result["platform"], pr_genre, script_result["estimated_word_count"])
+            t0 = time.time()
+            step_n = sum([run_search]) + 1
+            _bar(step_n, "Generating script…")
 
-                with results_area:
-                    with st.expander(f"✅ Script ready ({script_result['estimated_word_count']} words · {script_result['provider']} / {script_result['model']})", expanded=False):
-                        st.caption("**Hook:**")
-                        st.write(script_result["hook"])
-                        st.caption("**Main Script:**")
-                        st.write(script_result["main_script"])
-                        st.caption("**CTA:**")
-                        st.write(script_result["cta"])
-            except Exception as ex:
-                results_area.error(f"Script error: {ex}")
-                run_ok = False
+            with st.status("✍️  Step 2 — Script Generation", expanded=True) as s2:
+                st.write(f"**Post:** {post['title'][:80]}")
+                st.write(f"**Platform preset:** {pr_preset}  |  **Genre:** {pr_genre}")
+                st.write(f"**Provider:** {pr_provider_label}  |  **Model:** {pr_model}")
+                st.write(f"**Target duration:** {pr_duration}s  (~{PRESETS.get(pr_preset, PRESETS['Custom'])['word_count']} words)")
+                st.write("Sending prompt to AI model…")
+                try:
+                    script_result = generate_script(
+                        post=post,
+                        preset_name=pr_preset,
+                        genre=pr_genre,
+                        custom_duration=pr_duration,
+                        custom_style=pr_style,
+                        provider=pr_provider_key,
+                        model=pr_model,
+                        ollama_base_url=pr_ollama_url,
+                        ollama_api_key=pr_ollama_key,
+                    )
+                    st.session_state.script = script_result
+                    log_script(post["title"], script_result["platform"], pr_genre, script_result["estimated_word_count"])
+
+                    wc   = script_result["estimated_word_count"]
+                    wpm  = 130  # avg speaking pace
+                    est  = round(wc / wpm * 60)
+
+                    st.markdown("---")
+                    sw1, sw2, sw3, sw4 = st.columns(4)
+                    sw1.metric("Word count",    wc)
+                    sw2.metric("Est. duration", f"{est}s")
+                    sw3.metric("Target",        f"{pr_duration}s")
+                    sw4.metric("Image prompts", len(script_result.get("image_prompts", [])))
+
+                    with st.expander("📄 Full script", expanded=False):
+                        st.markdown(f"**🪝 Hook**\n\n{script_result['hook']}")
+                        st.markdown("---")
+                        st.markdown(f"**📝 Main Script**\n\n{script_result['main_script']}")
+                        st.markdown("---")
+                        st.markdown(f"**📣 CTA**\n\n{script_result['cta']}")
+
+                    with st.expander("🖼️ Image prompts", expanded=False):
+                        for j, p_txt in enumerate(script_result.get("image_prompts", []), 1):
+                            st.markdown(f"**{j}.** {p_txt}")
+
+                    elapsed = time.time() - t0
+                    timings["script"] = elapsed
+                    s2.update(
+                        label=f"✅  Step 2 — Script  ({elapsed:.1f}s)  ·  "
+                              f"{wc} words  ·  {script_result['provider']} / {script_result['model']}",
+                        state="complete", expanded=False,
+                    )
+                except Exception as ex:
+                    st.error(f"Script generation error: {ex}")
+                    s2.update(label=f"❌  Step 2 — Script: {ex}", state="error")
+                    run_ok = False
         else:
             script_result = st.session_state.script
 
-        # ── STEP 3: Voiceover ──────────────────────────────────────────────────
+        # ══ STEP 3 — VOICEOVER ════════════════════════════════════════════════
         if run_voice and run_ok:
-            advance("Generating voiceover...")
-            try:
-                voice_result = generate_voiceover(
-                    script=script_result["full_script"],
-                    language=pr_lang,
-                    speed=pr_speed,
-                )
-                if "error" in voice_result:
-                    results_area.error(f"Voiceover error: {voice_result['error']}")
-                    run_ok = False
-                else:
-                    st.session_state.voiceover = voice_result
-                    with results_area:
-                        st.success(f"✅ Voiceover: {voice_result['duration_sec']:.1f}s · {pr_lang}")
+            t0 = time.time()
+            step_n = sum([run_search, run_script]) + 1
+            _bar(step_n, "Generating voiceover…")
+
+            with st.status("🎙️  Step 3 — Voiceover", expanded=True) as s3:
+                wc = len(script_result["full_script"].split())
+                st.write(f"**Engine:** gTTS (free Google TTS)  |  **Language:** {pr_lang}  |  **Speed:** {pr_speed}")
+                st.write(f"**Script length:** {wc} words")
+                st.write("Sending text to TTS engine…")
+                try:
+                    voice_result = generate_voiceover(
+                        script=script_result["full_script"],
+                        language=pr_lang,
+                        speed=pr_speed,
+                    )
+                    if "error" in voice_result:
+                        st.error(voice_result["error"])
+                        s3.update(label=f"❌  Step 3 — Voiceover: {voice_result['error']}", state="error")
+                        run_ok = False
+                    else:
+                        st.session_state.voiceover = voice_result
+                        dur   = voice_result["duration_sec"]
+                        ratio = dur / max(script_result["target_duration_sec"], 1) * 100
+
+                        st.markdown("---")
+                        va, vb, vc = st.columns(3)
+                        va.metric("Duration",     f"{dur:.1f}s")
+                        vb.metric("Target",       f"{script_result['target_duration_sec']}s")
+                        vc.metric("Match",        f"{ratio:.0f}%", delta=f"{dur - script_result['target_duration_sec']:.1f}s")
+
+                        st.write("**Audio preview:**")
                         if os.path.exists(voice_result["path"]):
                             with open(voice_result["path"], "rb") as af:
                                 st.audio(af.read(), format="audio/mp3")
-            except Exception as ex:
-                results_area.error(f"Voiceover error: {ex}")
-                run_ok = False
+
+                        elapsed = time.time() - t0
+                        timings["voiceover"] = elapsed
+                        s3.update(
+                            label=f"✅  Step 3 — Voiceover  ({elapsed:.1f}s)  ·  {dur:.1f}s audio  ·  {pr_lang}",
+                            state="complete", expanded=False,
+                        )
+                except Exception as ex:
+                    st.error(f"Voiceover error: {ex}")
+                    s3.update(label=f"❌  Step 3 — Voiceover: {ex}", state="error")
+                    run_ok = False
         else:
             voice_result = st.session_state.voiceover
 
-        # ── STEP 4: Images ─────────────────────────────────────────────────────
+        # ══ STEP 4 — IMAGES ══════════════════════════════════════════════════
         if run_images and run_ok:
-            advance(f"Fetching {len(script_result.get('image_prompts', []))} images...")
-            try:
-                prompts = script_result.get("image_prompts", [])
-                if not prompts:
-                    prompts = [post.get("title", "abstract background")]
-                image_paths = prepare_images_for_video(prompts, use_stock=pr_use_stock, aspect_ratio=pr_aspect)
-                st.session_state.images = image_paths
+            t0 = time.time()
+            step_n = sum([run_search, run_script, run_voice]) + 1
+            prompts = script_result.get("image_prompts", []) or [post.get("title", "abstract background")]
+            _bar(step_n, f"Fetching {len(prompts)} images…")
 
-                with results_area:
-                    st.success(f"✅ {len(image_paths)} images ready")
-                    img_cols = st.columns(min(len(image_paths), 4))
-                    for i, p in enumerate(image_paths):
-                        if os.path.exists(p):
-                            img_cols[i % 4].image(p, use_container_width=True)
-            except Exception as ex:
-                results_area.error(f"Image error: {ex}")
-                run_ok = False
+            with st.status(f"🖼️  Step 4 — Images  ({len(prompts)} slides)", expanded=True) as s4:
+                stock_label = "Unsplash/Pexels stock" if (
+                    os.environ.get("UNSPLASH_ACCESS_KEY") or os.environ.get("PEXELS_API_KEY")
+                ) else "stylized placeholder (no stock key set)"
+                st.write(f"**Source:** {stock_label if pr_use_stock else 'stylized placeholders'}")
+                st.write(f"**Aspect ratio:** {pr_aspect}  |  **Slides:** {len(prompts)}")
+                st.markdown("---")
+                st.write("**Image prompts:**")
+                for j, p_txt in enumerate(prompts, 1):
+                    st.markdown(f"&nbsp;&nbsp;`{j}` {p_txt}")
+                st.markdown("---")
+                st.write("Fetching images…")
+
+                try:
+                    image_paths = prepare_images_for_video(
+                        prompts, use_stock=pr_use_stock, aspect_ratio=pr_aspect
+                    )
+                    st.session_state.images = image_paths
+
+                    st.write(f"**{len(image_paths)} images ready.** Preview:")
+                    n_cols = min(len(image_paths), 4)
+                    img_cols = st.columns(n_cols)
+                    for i, img_p in enumerate(image_paths):
+                        if os.path.exists(img_p):
+                            img_cols[i % n_cols].image(
+                                img_p,
+                                caption=f"Slide {i+1}",
+                                use_container_width=True,
+                            )
+
+                    elapsed = time.time() - t0
+                    timings["images"] = elapsed
+                    s4.update(
+                        label=f"✅  Step 4 — Images  ({elapsed:.1f}s)  ·  {len(image_paths)} slides  ·  {pr_aspect}",
+                        state="complete", expanded=False,
+                    )
+                except Exception as ex:
+                    st.error(f"Image fetch error: {ex}")
+                    s4.update(label=f"❌  Step 4 — Images: {ex}", state="error")
+                    run_ok = False
         else:
             image_paths = st.session_state.images
 
-        # ── STEP 5: Video Assembly ─────────────────────────────────────────────
+        # ══ STEP 5 — VIDEO ASSEMBLY ═══════════════════════════════════════════
         if run_video and run_ok:
-            advance("Assembling video with FFmpeg...")
-            try:
-                safe_title = "".join(
-                    c if c.isalnum() or c in "-_" else "_"
-                    for c in post.get("title", "video")[:40]
-                )
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                out_filename = f"{safe_title}_{ts}.mp4"
+            t0 = time.time()
+            step_n = sum([run_search, run_script, run_voice, run_images]) + 1
+            _bar(step_n, "Assembling video with FFmpeg…")
 
-                aspect_to_use = pr_aspect if run_images else script_result.get("aspect_ratio", "16:9")
+            aspect_to_use = (pr_aspect if run_images
+                             else script_result.get("aspect_ratio", "16:9"))
+            safe_title = "".join(
+                c if c.isalnum() or c in "-_" else "_"
+                for c in post.get("title", "video")[:40]
+            )
+            out_filename = f"{safe_title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
 
-                video_result = assemble_video(
-                    image_paths=image_paths,
-                    audio_path=voice_result["path"],
-                    output_filename=out_filename,
-                    aspect_ratio=aspect_to_use,
-                    ken_burns=pr_ken_burns,
-                    transition_duration=pr_transition,
-                    fps=pr_fps,
-                )
-                if "error" in video_result:
-                    results_area.error(f"Video error: {video_result['error']}")
-                    run_ok = False
-                else:
-                    st.session_state.video = video_result
-                    log_video(
-                        post_title=post.get("title", ""),
-                        platform=script_result["platform"],
-                        genre=pr_genre,
-                        duration_sec=video_result["duration_sec"],
-                        file_size_mb=video_result["file_size_mb"],
-                        video_path=video_result["path"],
+            with st.status("🎥  Step 5 — Video Assembly", expanded=True) as s5:
+                st.write(f"**Slides:** {len(image_paths)}  |  **Audio:** {voice_result['duration_sec']:.1f}s")
+                st.write(f"**Resolution:** {aspect_to_use}  |  **FPS:** {pr_fps}  |  **Ken Burns:** {pr_ken_burns}")
+                st.write(f"**Transition:** {pr_transition}s between slides")
+
+                per_slide = voice_result["duration_sec"] / max(len(image_paths), 1)
+                st.write(f"**Estimated time per slide:** {per_slide:.1f}s")
+                st.markdown("---")
+                st.write("⚙️  Running FFmpeg — this takes 1–3 minutes…")
+                prog_msg = st.empty()
+                prog_msg.info("FFmpeg encoding in progress…")
+
+                try:
+                    video_result = assemble_video(
+                        image_paths=image_paths,
                         audio_path=voice_result["path"],
-                        num_images=len(image_paths),
+                        output_filename=out_filename,
+                        aspect_ratio=aspect_to_use,
+                        ken_burns=pr_ken_burns,
+                        transition_duration=pr_transition,
+                        fps=pr_fps,
                     )
-                    with results_area:
-                        st.success(f"✅ Video assembled: {video_result['duration_sec']:.1f}s · {video_result['file_size_mb']} MB · {video_result['resolution']}")
+                    prog_msg.empty()
+
+                    if "error" in video_result:
+                        st.error(video_result["error"])
+                        s5.update(label=f"❌  Step 5 — Video: {video_result['error'][:80]}", state="error")
+                        run_ok = False
+                    else:
+                        st.session_state.video = video_result
+                        log_video(
+                            post_title=post.get("title", ""),
+                            platform=script_result["platform"],
+                            genre=pr_genre,
+                            duration_sec=video_result["duration_sec"],
+                            file_size_mb=video_result["file_size_mb"],
+                            video_path=video_result["path"],
+                            audio_path=voice_result["path"],
+                            num_images=len(image_paths),
+                        )
+                        st.markdown("---")
+                        va, vb, vc, vd = st.columns(4)
+                        va.metric("Duration",   f"{video_result['duration_sec']:.1f}s")
+                        vb.metric("File size",  f"{video_result['file_size_mb']} MB")
+                        vc.metric("Resolution", video_result["resolution"])
+                        vd.metric("FPS",        pr_fps)
+
+                        st.write("**Video preview:**")
                         vpath = video_result["path"]
                         if os.path.exists(vpath):
                             with open(vpath, "rb") as vf:
                                 vbytes = vf.read()
                             st.video(vbytes)
                             st.download_button(
-                                "⬇️ Download Video",
+                                "⬇️  Download MP4",
                                 data=vbytes,
                                 file_name=video_result["filename"],
                                 mime="video/mp4",
                                 use_container_width=True,
                             )
-            except Exception as ex:
-                results_area.error(f"Video assembly error: {ex}")
-                run_ok = False
 
-        # ── Done ───────────────────────────────────────────────────────────────
+                        elapsed = time.time() - t0
+                        timings["video"] = elapsed
+                        s5.update(
+                            label=f"✅  Step 5 — Video  ({elapsed:.1f}s)  ·  "
+                                  f"{video_result['duration_sec']:.1f}s  ·  "
+                                  f"{video_result['file_size_mb']} MB  ·  {video_result['resolution']}",
+                            state="complete", expanded=False,
+                        )
+                except Exception as ex:
+                    st.error(f"Video assembly error: {ex}")
+                    s5.update(label=f"❌  Step 5 — Video: {ex}", state="error")
+                    run_ok = False
+
+        # ══ FINAL SUMMARY ════════════════════════════════════════════════════
         if run_ok and last_steps:
-            progress_bar.progress(1.0)
-            status_box.success(f"✅ Pipeline complete — ran: {run_label}")
+            overall_bar.progress(1.0, text="Pipeline complete!")
+            total_elapsed = time.time() - pipeline_start
+
+            st.markdown("---")
+            st.subheader("🏁 Pipeline Summary")
+
+            # timing table
+            timing_rows = []
+            step_map_labels = {
+                "search":    "🔍 Search Reddit",
+                "script":    "✍️ Script",
+                "voiceover": "🎙️ Voiceover",
+                "images":    "🖼️ Images",
+                "video":     "🎥 Video Assembly",
+            }
+            for key, label in step_map_labels.items():
+                if key in timings:
+                    timing_rows.append({"Step": label, "Time": f"{timings[key]:.1f}s",
+                                        "Share": f"{timings[key]/total_elapsed*100:.0f}%"})
+
+            if timing_rows:
+                sum_cols = st.columns(len(timing_rows) + 1)
+                for i, row in enumerate(timing_rows):
+                    sum_cols[i].metric(row["Step"], row["Time"])
+                sum_cols[-1].metric("⏱️ Total", f"{total_elapsed:.1f}s")
+
+            # waterfall chart
+            if len(timing_rows) > 1:
+                fig = px.bar(
+                    pd.DataFrame(timing_rows),
+                    x="Time", y="Step", orientation="h",
+                    title="Time per step",
+                    text="Time",
+                    color="Step",
+                )
+                fig.update_layout(showlegend=False, height=250,
+                                  margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig, use_container_width=True)
+
+            st.success(
+                f"All {len(last_steps)} step(s) completed successfully in **{total_elapsed:.1f}s**. "
+                f"Results are loaded into each individual step page for further editing."
+            )

@@ -1,45 +1,68 @@
-# [Project name]
+# Reddit Video Pipeline
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A full content creation pipeline that turns top Reddit posts into viral short-form videos, complete with AI-generated scripts, voiceovers, Ken Burns-style slideshows, and optional YouTube upload.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `cd redditvideo && streamlit run app.py --server.port 5000` — run the Streamlit dashboard
+- The workflow "Reddit Video Pipeline" manages this automatically
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Python 3.11 + Streamlit
+- Reddit API: PRAW
+- Script AI: OpenAI (via Replit AI Integrations — no key needed)
+- Voiceover: gTTS (Google Text-to-Speech, free)
+- Images: Unsplash/Pexels stock (add API keys) or styled placeholders
+- Video assembly: FFmpeg + moviepy (Ken Burns zoompan filter)
+- Analytics: JSON flat file (redditvideo/data/analytics.json)
+- Charts: Plotly
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `redditvideo/app.py` — main Streamlit multi-page dashboard
+- `redditvideo/src/reddit.py` — PRAW Reddit fetching
+- `redditvideo/src/script_generator.py` — OpenAI script generation + PRESETS
+- `redditvideo/src/voiceover.py` — gTTS voiceover generation
+- `redditvideo/src/image_pipeline.py` — stock/placeholder image fetching + resizing
+- `redditvideo/src/video_assembler.py` — FFmpeg video assembly with Ken Burns
+- `redditvideo/src/analytics.py` — usage tracking + stats
+- `redditvideo/src/youtube_uploader.py` — YouTube Data API v3 upload
+- `redditvideo/output/` — generated videos, audio, images
+- `redditvideo/data/analytics.json` — analytics database
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Flat JSON analytics file for simplicity — no DB setup needed for a single-user tool
+- FFmpeg's zoompan filter for Ken Burns effect — no Python video manipulation overhead
+- gTTS used as free TTS; OpenAI TTS can be swapped in via voiceover.py
+- OpenAI accessed via Replit AI Integrations proxy (no API key needed from user)
+- YouTube upload is optional and requires YOUTUBE_CLIENT_SECRETS_JSON secret
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+6-page Streamlit dashboard:
+1. **Search Reddit** — search any subreddit(s), filter by time/score/type, select a post
+2. **Script Generator** — AI-powered script with platform presets (YouTube Short, TikTok, Reel, etc.)
+3. **Voiceover** — free gTTS narration with language + speed options
+4. **Images** — Ken Burns slideshow images (stock or placeholder, auto-prompted from script)
+5. **Assemble Video** — FFmpeg-powered video assembly with download + YouTube upload
+6. **Analytics** — usage charts, platform/genre breakdowns, recent activity log
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Free TTS preferred (gTTS)
+- Both AI-generated and stock photos for images
+- User has Reddit API credentials (REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USER_AGENT)
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Add UNSPLASH_ACCESS_KEY or PEXELS_API_KEY secret for real stock photos
+- YouTube upload requires YOUTUBE_CLIENT_SECRETS_JSON (OAuth2 JSON from Google Cloud Console)
+- Video assembly takes 1-3 minutes depending on number of images and video length
+- FFmpeg must be installed (done via installSystemDependencies)
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See the `pnpm-workspace` skill for workspace structure (Node.js side)
+- Python packages in redditvideo/requirements.txt

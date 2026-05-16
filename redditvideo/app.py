@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 from src.reddit import fetch_top_posts, fetch_hot_posts, search_subreddits
-from src.script_generator import generate_script, PRESETS
+from src.script_generator import generate_script, PRESETS, PROVIDERS, OPENROUTER_MODELS, OPENAI_REPLIT_MODELS
 from src.voiceover import generate_voiceover, GTTS_LANGUAGES
 from src.image_pipeline import prepare_images_for_video, fetch_stock_image
 from src.video_assembler import assemble_video
@@ -203,10 +203,51 @@ elif page == "✍️ Script Generator":
         custom_duration = p["duration_sec"]
         custom_style = ""
 
+    st.markdown("---")
+    st.subheader("🤖 AI Provider")
+
+    provider_label = st.selectbox("Inference provider", list(PROVIDERS.keys()))
+    provider_key = PROVIDERS[provider_label]
+
+    ollama_base_url = ""
+    ollama_api_key = ""
+
+    if provider_key == "openai_replit":
+        selected_model = st.selectbox("Model", OPENAI_REPLIT_MODELS, index=1)
+        st.caption("Uses Replit AI Integrations — no API key required. Charges billed to your Replit credits.")
+
+    elif provider_key == "openrouter_replit":
+        selected_model = st.selectbox("Model", OPENROUTER_MODELS)
+        st.caption("Uses OpenRouter via Replit AI Integrations — no API key required. Charges billed to your Replit credits.")
+        st.caption("Models marked `:free` have no per-token cost.")
+
+    else:  # ollama_cloud
+        ollama_base_url = st.text_input(
+            "Ollama Cloud base URL",
+            value=os.environ.get("OLLAMA_CLOUD_BASE_URL", ""),
+            placeholder="https://your-ollama-cloud-host/v1",
+            help="The /v1 endpoint of your Ollama Cloud instance. Set OLLAMA_CLOUD_BASE_URL as a secret to persist this.",
+        )
+        ollama_api_key = st.text_input(
+            "API key (optional)",
+            value=os.environ.get("OLLAMA_CLOUD_API_KEY", ""),
+            type="password",
+            help="Leave blank if your Ollama Cloud instance does not require auth. Set OLLAMA_CLOUD_API_KEY as a secret to persist this.",
+        )
+        selected_model = st.text_input(
+            "Model name",
+            value="llama3.3",
+            placeholder="e.g. llama3.3, mistral, qwen2.5:72b",
+            help="Exact model tag as it appears in your Ollama instance.",
+        )
+        if not ollama_base_url:
+            st.warning("Enter your Ollama Cloud base URL above, or add OLLAMA_CLOUD_BASE_URL as a Replit secret.")
+
+    st.markdown("---")
     extra = st.text_area("Extra instructions (optional)", placeholder="e.g. mention the comments section, add a disclaimer, focus on a specific angle...")
 
     if st.button("🪄 Generate Script", type="primary", use_container_width=True):
-        with st.spinner("Generating script with AI..."):
+        with st.spinner(f"Generating script with {provider_label} / {selected_model}..."):
             try:
                 result = generate_script(
                     post=post,
@@ -215,10 +256,14 @@ elif page == "✍️ Script Generator":
                     custom_duration=custom_duration,
                     custom_style=custom_style,
                     extra_instructions=extra,
+                    provider=provider_key,
+                    model=selected_model,
+                    ollama_base_url=ollama_base_url,
+                    ollama_api_key=ollama_api_key,
                 )
                 st.session_state.script = result
                 log_script(post["title"], result["platform"], genre, result["estimated_word_count"])
-                st.success("Script generated!")
+                st.success(f"Script generated with {result['provider']} / {result['model']}!")
             except Exception as ex:
                 st.error(f"Error generating script: {ex}")
 

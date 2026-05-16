@@ -47,13 +47,97 @@ PRESETS = {
     },
 }
 
+PROVIDERS = {
+    "OpenAI (Replit)": "openai_replit",
+    "OpenRouter (Replit)": "openrouter_replit",
+    "Ollama Cloud": "ollama_cloud",
+}
 
-def get_openai_client() -> OpenAI:
-    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+OPENROUTER_MODELS = [
+    # Meta Llama
+    "meta-llama/llama-3.3-70b-instruct",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "meta-llama/llama-3.1-70b-instruct",
+    "meta-llama/llama-3.1-8b-instruct",
+    "meta-llama/llama-4-maverick",
+    "meta-llama/llama-4-scout",
+    # Mistral
+    "mistralai/mistral-large-2512",
+    "mistralai/mistral-medium-3",
+    "mistralai/mistral-small-3.2-24b-instruct",
+    "mistralai/mixtral-8x22b-instruct",
+    # DeepSeek
+    "deepseek/deepseek-chat-v3.1",
+    "deepseek/deepseek-r1",
+    "deepseek/deepseek-v4-flash",
+    "deepseek/deepseek-v4-flash:free",
+    # Qwen
+    "qwen/qwen3-235b-a22b",
+    "qwen/qwen3-32b",
+    "qwen/qwen3-14b",
+    "qwen/qwen-2.5-72b-instruct",
+    # Google Gemma
+    "google/gemma-3-27b-it",
+    "google/gemma-4-31b-it",
+    "google/gemma-4-31b-it:free",
+    # Cohere
+    "cohere/command-a",
+    "cohere/command-r-plus-08-2024",
+    # xAI
+    "x-ai/grok-4.3",
+    # Microsoft
+    "microsoft/phi-4",
+    # Nvidia
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+]
+
+OPENAI_REPLIT_MODELS = [
+    "gpt-5.4",
+    "gpt-5.2",
+    "gpt-5.1",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+]
+
+
+def get_client(provider_key: str, ollama_base_url: str = "", ollama_api_key: str = "") -> tuple[OpenAI, str]:
+    """
+    Returns (OpenAI-compatible client, provider_label).
+    All three providers use the OpenAI SDK — they only differ in base_url and api_key.
+    """
+    if provider_key == "openrouter_replit":
+        base_url = os.environ.get("AI_INTEGRATIONS_OPENROUTER_BASE_URL", "")
+        api_key = os.environ.get("AI_INTEGRATIONS_OPENROUTER_API_KEY", "dummy")
+        if not base_url:
+            raise EnvironmentError("AI_INTEGRATIONS_OPENROUTER_BASE_URL is not set. OpenRouter integration may not be provisioned.")
+        return OpenAI(base_url=base_url, api_key=api_key), "OpenRouter"
+
+    if provider_key == "ollama_cloud":
+        base_url = ollama_base_url or os.environ.get("OLLAMA_CLOUD_BASE_URL", "")
+        api_key = ollama_api_key or os.environ.get("OLLAMA_CLOUD_API_KEY", "ollama")
+        if not base_url:
+            raise EnvironmentError(
+                "Ollama Cloud base URL is not configured. Enter it in the provider settings "
+                "or set OLLAMA_CLOUD_BASE_URL as a secret."
+            )
+        return OpenAI(base_url=base_url, api_key=api_key), "Ollama Cloud"
+
+    # Default: OpenAI via Replit AI Integrations
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
     api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "dummy")
     if base_url:
-        return OpenAI(base_url=base_url, api_key=api_key)
-    return OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+        return OpenAI(base_url=base_url, api_key=api_key), "OpenAI (Replit)"
+    return OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "")), "OpenAI"
+
+
+def _pick_max_tokens_param(provider_key: str, model: str) -> dict:
+    """
+    OpenAI gpt-5+ models use max_completion_tokens; everything else uses max_tokens.
+    """
+    if provider_key == "openai_replit" and model.startswith("gpt-5"):
+        return {"max_completion_tokens": 1500}
+    return {"max_tokens": 1500}
 
 
 def generate_script(
@@ -63,6 +147,10 @@ def generate_script(
     custom_duration: int = 60,
     custom_style: str = "",
     extra_instructions: str = "",
+    provider: str = "openai_replit",
+    model: str = "gpt-5.2",
+    ollama_base_url: str = "",
+    ollama_api_key: str = "",
 ) -> dict:
     preset = PRESETS.get(preset_name, PRESETS["Custom"]).copy()
     if preset_name == "Custom":
@@ -110,16 +198,18 @@ CTA:
 [Call to action]
 
 IMAGE_PROMPTS:
-[4-6 comma-separated visual scene descriptions for slideshow images, one per line, prefixed with "- "]"""
+[4-6 visual scene descriptions for slideshow images, one per line, prefixed with "- "]"""
 
-    client = get_openai_client()
+    client, provider_label = get_client(provider, ollama_base_url, ollama_api_key)
+    token_param = _pick_max_tokens_param(provider, model)
+
     response = client.chat.completions.create(
-        model="gpt-5.2",
+        model=model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        max_completion_tokens=1500,
+        **token_param,
     )
 
     raw = response.choices[0].message.content or ""
@@ -151,6 +241,8 @@ IMAGE_PROMPTS:
         "estimated_word_count": len(full_script.split()),
         "source_post_id": post.get("id", ""),
         "source_post_title": title,
+        "provider": provider_label,
+        "model": model,
     }
 
 

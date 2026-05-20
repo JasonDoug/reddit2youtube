@@ -4,11 +4,29 @@ from datetime import datetime, timezone
 from typing import Optional
 
 
+def _normalize_user_agent(raw: str) -> str:
+    """
+    Reddit requires user-agent in the form:
+        <platform>:<app_id>:<version> (by /u/<username>)
+    If the value looks like a bare username or free-form string, wrap it.
+    """
+    raw = raw.strip()
+    if not raw:
+        return "script:RedditVideoBot:v1.0 (by /u/unknown)"
+    # Already looks like a properly formatted agent if it contains colons + "by /u/"
+    if ":" in raw and ("by /u/" in raw or "by/u/" in raw):
+        return raw
+    # Treat the raw value as the author's Reddit username
+    return f"script:RedditVideoBot:v1.0 (by /u/{raw})"
+
+
 def get_reddit_client() -> praw.Reddit:
+    raw_agent = os.environ.get("REDDIT_USER_AGENT", "")
+    user_agent = _normalize_user_agent(raw_agent)
     return praw.Reddit(
         client_id=os.environ["REDDIT_CLIENT_ID"],
         client_secret=os.environ["REDDIT_CLIENT_SECRET"],
-        user_agent=os.environ.get("REDDIT_USER_AGENT", "RedditVideoBot/1.0"),
+        user_agent=user_agent,
     )
 
 

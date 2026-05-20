@@ -826,29 +826,56 @@ elif page == "⚡ Pipeline Runner":
                     st.write(f"**Sort:** {pr_sort}  |  **Time window:** {pr_time if pr_sort == 'Top' else 'n/a (Hot)'}")
                     st.write(f"**Fetching up to {pr_limit} posts…**")
                     try:
-                        if pr_sort == "Top":
-                            raw_posts = fetch_top_posts(subs, pr_time, pr_limit, 0)
-                        else:
-                            raw_posts = fetch_hot_posts(subs, pr_limit)
+                        # ── Test credentials first ───────────────────────────
+                        st.write("Verifying Reddit API credentials…")
+                        from src.reddit import get_reddit_client
+                        try:
+                            _rc = get_reddit_client()
+                            _rc.user.me()   # lightweight auth check (read-only apps return None, not an exception)
+                            st.write("✓ Reddit API connected")
+                        except Exception as _auth_err:
+                            # read-only PRAW returns None from user.me(), not an error
+                            # so only fail here on a real exception
+                            _auth_str = str(_auth_err)
+                            if "401" in _auth_str or "403" in _auth_str or "invalid_grant" in _auth_str.lower():
+                                st.error(f"Reddit credentials rejected: {_auth_str}")
+                                s1.update(
+                                    label=f"❌  Step 1 — Reddit auth failed: {_auth_str[:80]}",
+                                    state="error", expanded=True,
+                                )
+                                run_ok = False
 
-                        errors = [p for p in raw_posts if "error" in p]
-                        all_posts = [p for p in raw_posts if "error" not in p]
+                        if run_ok:
+                            if pr_sort == "Top":
+                                raw_posts = fetch_top_posts(subs, pr_time, pr_limit, 0)
+                            else:
+                                raw_posts = fetch_hot_posts(subs, pr_limit)
 
-                        for err in errors:
-                            st.warning(f"r/{err['subreddit']}: {err['error']}")
+                            errors   = [p for p in raw_posts if "error" in p]
+                            all_posts = [p for p in raw_posts if "error" not in p]
 
-                        st.write(f"**Raw results:** {len(raw_posts)} total  |  {len(all_posts)} valid  |  {len(errors)} errors")
+                            for err in errors:
+                                st.warning(f"⚠️ r/{err['subreddit']}: {err['error']}")
 
-                        # score filter
-                        if pr_min_score > 0:
-                            before = len(all_posts)
-                            all_posts = [p for p in all_posts if p.get("score", 0) >= pr_min_score]
-                            st.write(f"**Score filter ≥ {pr_min_score:,}:** {before} → {len(all_posts)} posts kept")
+                            st.write(f"**Raw results:** {len(raw_posts)} total  |  {len(all_posts)} valid  |  {len(errors)} API errors")
 
-                        if not all_posts:
-                            st.error("No posts passed the filters. Loosen score threshold or try different subreddits.")
-                            s1.update(label="❌  Step 1 — Search Reddit: no posts found", state="error")
-                            run_ok = False
+                            # score filter
+                            if pr_min_score > 0:
+                                before = len(all_posts)
+                                all_posts = [p for p in all_posts if p.get("score", 0) >= pr_min_score]
+                                st.write(f"**Score filter ≥ {pr_min_score:,}:** {before} → {len(all_posts)} posts kept")
+
+                            if not all_posts:
+                                if errors:
+                                    err_summary = errors[0]["error"]
+                                    fail_msg    = f"Reddit API error — {err_summary[:100]}"
+                                elif pr_min_score > 0:
+                                    fail_msg = f"All posts filtered out by score ≥ {pr_min_score:,} — lower the threshold"
+                                else:
+                                    fail_msg = "No posts returned — check subreddit names"
+                                st.error(fail_msg)
+                                s1.update(label=f"❌  Step 1 — {fail_msg}", state="error", expanded=True)
+                                run_ok = False
                         else:
                             # Sort & stats
                             all_posts.sort(key=lambda p: p.get("score", 0), reverse=True)

@@ -385,26 +385,35 @@ elif page == "🖼️ Images":
     if add_prompt:
         edited_prompts.append(add_prompt)
 
+    IMG_SOURCES = {
+        "AI-generated (matches your script)": "ai",
+        "Stock photos (Unsplash/Pexels)": "stock",
+        "Stylized placeholders": "placeholder",
+    }
     col1, col2 = st.columns(2)
     with col1:
-        use_stock = st.toggle("Use stock photos (Unsplash/Pexels)", value=True,
-                              help="If no API key is set, styled placeholder images will be used.")
+        source_label = st.selectbox("Image source", list(IMG_SOURCES.keys()), index=0,
+                                    help="AI-generated images are created to match each prompt's subject.")
+        img_source = IMG_SOURCES[source_label]
     with col2:
         aspect = st.selectbox("Aspect ratio", ["16:9", "9:16", "1:1", "4:3"],
                               index=["16:9", "9:16", "1:1", "4:3"].index(s.get("aspect_ratio", "16:9")))
 
-    if not os.environ.get("UNSPLASH_ACCESS_KEY") and not os.environ.get("PEXELS_API_KEY"):
-        st.info("💡 No stock photo API key found. Stylized placeholder images will be generated. "
-                "Add UNSPLASH_ACCESS_KEY or PEXELS_API_KEY as a secret for real stock photos.")
+    if img_source == "ai":
+        st.info("🎨 Images will be AI-generated to match each prompt — no API key needed.")
+    elif img_source == "stock" and not os.environ.get("UNSPLASH_ACCESS_KEY") and not os.environ.get("PEXELS_API_KEY"):
+        st.info("💡 No stock photo API key found, so random Picsum photos will be used (these won't match the subject). "
+                "Add UNSPLASH_ACCESS_KEY or PEXELS_API_KEY, or switch to AI-generated images above.")
 
     if st.button("🖼️ Fetch Images", type="primary", use_container_width=True):
         final_prompts = [p for p in edited_prompts if p.strip()]
         if not final_prompts:
             st.error("Add at least one image prompt.")
         else:
-            with st.spinner(f"Fetching {len(final_prompts)} images..."):
+            verb = "Generating" if img_source == "ai" else "Fetching"
+            with st.spinner(f"{verb} {len(final_prompts)} images..."):
                 try:
-                    paths = prepare_images_for_video(final_prompts, use_stock=use_stock, aspect_ratio=aspect)
+                    paths = prepare_images_for_video(final_prompts, source=img_source, aspect_ratio=aspect)
                     st.session_state.images = paths
                     st.session_state.script["image_prompts"] = final_prompts
                     st.success(f"Got {len(paths)} images!")
@@ -865,13 +874,22 @@ elif page == "⚡ Pipeline Runner":
     if run_images:
         st.markdown("---")
         st.subheader("4 · Images")
+        PR_IMG_SOURCES = {
+            "AI-generated (matches your script)": "ai",
+            "Stock photos (Unsplash/Pexels)": "stock",
+            "Stylized placeholders": "placeholder",
+        }
         col_i1, col_i2 = st.columns(2)
         with col_i1:
-            pr_use_stock = st.toggle("Use stock photos", value=True, key="pr_stock")
+            pr_source_label = st.selectbox("Image source", list(PR_IMG_SOURCES.keys()),
+                                           index=0, key="pr_img_source")
+            pr_img_source = PR_IMG_SOURCES[pr_source_label]
         with col_i2:
             pr_aspect = st.selectbox("Aspect ratio", ["16:9", "9:16", "1:1", "4:3"], key="pr_aspect")
-        if not os.environ.get("UNSPLASH_ACCESS_KEY") and not os.environ.get("PEXELS_API_KEY"):
-            st.caption("No stock photo API key set — stylized placeholders will be used.")
+        if pr_img_source == "ai":
+            st.caption("🎨 Images will be AI-generated to match your script — no API key needed.")
+        elif pr_img_source == "stock" and not os.environ.get("UNSPLASH_ACCESS_KEY") and not os.environ.get("PEXELS_API_KEY"):
+            st.caption("No stock photo API key set — random Picsum photos (won't match the subject) will be used.")
 
     # ── Step 5 config: Video ──────────────────────────────────────────────────
     if run_video:
@@ -1239,21 +1257,27 @@ elif page == "⚡ Pipeline Runner":
             _bar(step_n, f"Fetching {len(prompts)} images…")
 
             with st.status(f"🖼️  Step 4 — Images  ({len(prompts)} slides)", expanded=True) as s4:
-                stock_label = "Unsplash/Pexels stock" if (
-                    os.environ.get("UNSPLASH_ACCESS_KEY") or os.environ.get("PEXELS_API_KEY")
-                ) else "stylized placeholder (no stock key set)"
-                st.write(f"**Source:** {stock_label if pr_use_stock else 'stylized placeholders'}")
+                if pr_img_source == "ai":
+                    src_label = "AI-generated (matched to script)"
+                elif pr_img_source == "stock":
+                    src_label = "Unsplash/Pexels stock" if (
+                        os.environ.get("UNSPLASH_ACCESS_KEY") or os.environ.get("PEXELS_API_KEY")
+                    ) else "random Picsum (no stock key set)"
+                else:
+                    src_label = "stylized placeholders"
+                st.write(f"**Source:** {src_label}")
                 st.write(f"**Aspect ratio:** {pr_aspect}  |  **Slides:** {len(prompts)}")
                 st.markdown("---")
                 st.write("**Image prompts:**")
                 for j, p_txt in enumerate(prompts, 1):
                     st.markdown(f"&nbsp;&nbsp;`{j}` {p_txt}")
                 st.markdown("---")
-                st.write("Fetching images…")
+                verb = "Generating" if pr_img_source == "ai" else "Fetching"
+                st.write(f"{verb} images…")
 
                 try:
                     image_paths = prepare_images_for_video(
-                        prompts, use_stock=pr_use_stock, aspect_ratio=pr_aspect
+                        prompts, source=pr_img_source, aspect_ratio=pr_aspect
                     )
                     st.session_state.images = image_paths
 

@@ -1,5 +1,8 @@
 import os
+import io
+import base64
 import hashlib
+import threading
 import requests
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -9,32 +12,160 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
 
+# Per-cache-key locks so concurrent slides with the SAME prompt (which map to
+# the same cache file) serialize instead of racing on a half-written file.
+_KEY_LOCKS: dict[str, threading.Lock] = {}
+_KEY_LOCKS_GUARD = threading.Lock()
+
+
+def _key_lock(key: str) -> threading.Lock:
+    with _KEY_LOCKS_GUARD:
+        lock = _KEY_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _KEY_LOCKS[key] = lock
+        return lock
+
+# Valid image sources, in order of how well they match the script subject.
+SOURCE_AI = "ai"            # AI-generated to match each prompt (best match)
+SOURCE_STOCK = "stock"      # Unsplash/Pexels search → Picsum random fallback
+SOURCE_PLACEHOLDER = "placeholder"
+
 
 def prepare_images_for_video(
     image_prompts: list[str],
-    use_stock: bool = True,
+    source: str = SOURCE_AI,
     aspect_ratio: str = "16:9",
+    use_stock: bool | None = None,   # legacy kwarg, kept for old callers
 ) -> list[str]:
     """
-    Fetch / generate one image per prompt and return resized file paths.
-    A base_seed derived from the full prompt list ensures every slide in
-    one batch gets a *different* Picsum photo ID.
+    Generate / fetch one image per prompt and return resized file paths.
+
+    source:
+      • "ai"          → AI-generated images that match each prompt's subject
+      • "stock"       → Unsplash/Pexels (if keyed) else random Picsum photos
+      • "placeholder" → offline gradient cards
     """
+    # Back-compat: older call sites passed use_stock as the 2nd arg (now
+    # `source`), either positionally (a bool) or as a keyword.
+    if isinstance(source, bool):
+        source = SOURCE_STOCK if source else SOURCE_PLACEHOLDER
+    elif use_stock is not None and source == SOURCE_AI:
+        source = SOURCE_STOCK if use_stock else SOURCE_PLACEHOLDER
+
     # Seed derived from the combined prompts so each script gets its own
-    # starting offset in the Picsum library.
+    # starting offset in the Picsum library (stock fallback only).
     combined = "|".join(image_prompts)
     base_seed = int(hashlib.md5(combined.encode()).hexdigest()[:6], 16) % 500
 
-    image_paths = []
-    for i, prompt in enumerate(image_prompts):
-        if use_stock:
-            path = _fetch_stock_image(prompt, index=i, base_seed=base_seed)
-        else:
-            path = _create_placeholder_image(prompt, i)
-        if path:
-            image_paths.append(_resize_for_aspect(path, aspect_ratio))
+    def _one(i: int, prompt: str) -> str | None:
+        # A single bad slide must never abort the whole batch, so every path
+        # is wrapped and degrades to a placeholder as a last resort.
+        try:
+            if source == SOURCE_AI:
+                # AI generation is independent per slide and slow, so callers
+                # run these concurrently. Fall back to stock if it fails.
+                path = _generate_ai_image(prompt, index=i, aspect_ratio=aspect_ratio)
+                if not path:
+                    path = _fetch_stock_image(prompt, index=i, base_seed=base_seed)
+            elif source == SOURCE_STOCK:
+                path = _fetch_stock_image(prompt, index=i, base_seed=base_seed)
+            else:
+                path = _create_placeholder_image(prompt, i)
+            if not path:
+                return None
+            return _resize_for_aspect(path, aspect_ratio)
+        except Exception:
+            try:
+                return _resize_for_aspect(_create_placeholder_image(prompt, i), aspect_ratio)
+            except Exception:
+                return None
 
-    return image_paths
+    # Generate AI images in parallel (each call is ~15-40s); fetch others
+    # serially since they are fast and rate-limit-friendly.
+    if source == SOURCE_AI and len(image_prompts) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        results: list[str | None] = [None] * len(image_prompts)
+        with ThreadPoolExecutor(max_workers=min(len(image_prompts), 5)) as ex:
+            futures = {ex.submit(_one, i, p): i for i, p in enumerate(image_prompts)}
+            for fut in futures:
+                results[futures[fut]] = fut.result()
+        return [p for p in results if p]
+
+    out: list[str] = []
+    for i, prompt in enumerate(image_prompts):
+        path = _one(i, prompt)
+        if path:
+            out.append(path)
+    return out
+
+
+# ── AI image generation ───────────────────────────────────────────────────────
+
+# gpt-image-1 only accepts these three sizes; pick the nearest to the aspect.
+_AI_SIZE_FOR_ASPECT = {
+    "16:9": "1536x1024",
+    "4:3":  "1536x1024",
+    "9:16": "1024x1536",
+    "1:1":  "1024x1024",
+}
+
+
+def _ai_client():
+    """OpenAI SDK client pointed at the Replit AI Integrations proxy (no key)."""
+    from openai import OpenAI
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
+    api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "dummy")
+    if base_url:
+        return OpenAI(base_url=base_url, api_key=api_key)
+    if os.environ.get("OPENAI_API_KEY"):
+        return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    return None
+
+
+def _generate_ai_image(prompt: str, index: int, aspect_ratio: str) -> str | None:
+    """
+    Generate an image that matches `prompt` using gpt-image-1 via the Replit
+    OpenAI proxy. Cached by (prompt, aspect) so re-runs don't regenerate.
+    Returns the file path, or None if generation is unavailable.
+    """
+    size = _AI_SIZE_FOR_ASPECT.get(aspect_ratio, "1536x1024")
+    key = hashlib.md5(f"{prompt}|{size}".encode()).hexdigest()[:10]
+    cache_path = OUTPUT_DIR / f"ai_{key}.jpg"
+
+    # Serialize same-key requests: duplicate prompts in one batch share this
+    # cache file, so the first thread generates and the rest hit the cache
+    # instead of racing on a half-written file.
+    with _key_lock(key):
+        if cache_path.exists():
+            return str(cache_path)
+
+        client = _ai_client()
+        if client is None:
+            return None
+
+        # Style the prompt for clean, cinematic, subject-relevant stills.
+        styled = (
+            f"{prompt}. Cinematic, high detail, dramatic lighting, photorealistic, "
+            f"vivid colors, professional photography, no text, no watermark."
+        )
+        try:
+            resp = client.images.generate(
+                model="gpt-image-1", prompt=styled, size=size, n=1,
+            )
+            b64 = getattr(resp.data[0], "b64_json", None)
+            if not b64:
+                return None
+            # Decode, normalize to JPEG, and publish atomically so readers
+            # never observe a partially written cache file.
+            tmp_path = cache_path.with_suffix(".tmp.jpg")
+            Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB").save(
+                str(tmp_path), "JPEG", quality=92
+            )
+            os.replace(str(tmp_path), str(cache_path))
+            return str(cache_path)
+        except Exception:
+            return None
 
 
 # ── Image fetchers ────────────────────────────────────────────────────────────
@@ -183,21 +314,29 @@ def _resize_for_aspect(path: str, aspect_ratio: str) -> str:
         "4:3":  (1440, 1080),
     }
     target_w, target_h = ratios.get(aspect_ratio, (1920, 1080))
-    img = Image.open(path).convert("RGB")
-    src_w, src_h = img.size
-    if src_w / src_h > target_w / target_h:
-        new_h = target_h
-        new_w = int(src_w * (target_h / src_h))
-    else:
-        new_w = target_w
-        new_h = int(src_h * (target_w / src_w))
-    img = img.resize((new_w, new_h), Image.LANCZOS)
-    left = (new_w - target_w) // 2
-    top  = (new_h - target_h) // 2
-    img  = img.crop((left, top, left + target_w, top + target_h))
     p = Path(path)
     out_path = p.parent / f"{p.stem}_{aspect_ratio.replace(':', 'x')}.jpg"
-    img.save(str(out_path), "JPEG", quality=90)
+
+    # Duplicate prompts produce the same source path → same out_path, so
+    # serialize on it and publish atomically to avoid concurrent corruption.
+    with _key_lock(str(out_path)):
+        if out_path.exists():
+            return str(out_path)
+        img = Image.open(path).convert("RGB")
+        src_w, src_h = img.size
+        if src_w / src_h > target_w / target_h:
+            new_h = target_h
+            new_w = int(src_w * (target_h / src_h))
+        else:
+            new_w = target_w
+            new_h = int(src_h * (target_w / src_w))
+        img = img.resize((new_w, new_h), Image.LANCZOS)
+        left = (new_w - target_w) // 2
+        top  = (new_h - target_h) // 2
+        img  = img.crop((left, top, left + target_w, top + target_h))
+        tmp_path = out_path.with_suffix(".tmp.jpg")
+        img.save(str(tmp_path), "JPEG", quality=90)
+        os.replace(str(tmp_path), str(out_path))
     return str(out_path)
 
 

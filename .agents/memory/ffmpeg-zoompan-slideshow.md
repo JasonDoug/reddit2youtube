@@ -24,3 +24,10 @@ then `concat`. The `trim` is what caps each slide so zoompan's expansion can't b
 - A "pop" zoom = two drawtext per word (bigger for ~0.1s, then base). That doubles filter count; cap it (drop pop above ~280 words) so long scripts don't explode into thousands of filters and stall the encode.
 - Hundreds of drawtext filters exceed argv limits — write the whole filtergraph to a file and use `-filter_complex_script` instead of `-filter_complex`.
 - Genre→font/colour map lives in video_assembler `_GENRE_STYLES`; TTFs are bundled in `redditvideo/assets/fonts/` (Bangers/Anton/Pacifico/BebasNeue/Creepster) with DejaVu fallback.
+
+## Subject-relevant slideshow images
+- Picsum (`/seed/...`) returns RANDOM photos unrelated to the topic — only a last-resort fallback, never the default. To match the script subject, generate images from the script's `image_prompts`.
+- Runtime AI image generation in Python uses the SAME Replit OpenAI proxy as the script step: `OpenAI(base_url=AI_INTEGRATIONS_OPENAI_BASE_URL, api_key=AI_INTEGRATIONS_OPENAI_API_KEY)`, model `gpt-image-1`, which returns `b64_json` (not a URL). No user API key needed. (The agent-side `generateImage` skill tool is NOT callable at app runtime.)
+- gpt-image-1 only accepts sizes 1024x1024 / 1536x1024 / 1024x1536 — map aspect to nearest then crop with the existing resize helper.
+- Generation is slow (~15-40s/image); run slides concurrently with ThreadPoolExecutor since calls are independent. Cache by md5(prompt|size).
+- Concurrency hazard: duplicate prompts in one batch map to the SAME cache file → threads race on a half-written file. Guard with a per-cache-key `threading.Lock` + atomic publish (write `.tmp` then `os.replace`). Same applies to the resized-output path.

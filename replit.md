@@ -13,7 +13,7 @@ A full content creation pipeline that turns top Reddit posts into viral short-fo
 - Reddit API: PRAW
 - Script AI: OpenAI (via Replit AI Integrations — no key needed)
 - Voiceover: gTTS (Google Text-to-Speech, free)
-- Images: Unsplash/Pexels stock (add API keys) or styled placeholders
+- Images: AI-generated (gpt-image-1 via Replit AI Integrations — default, matches the script subject), Unsplash/Pexels stock (add API keys), or styled placeholders
 - Video assembly: FFmpeg + moviepy (Ken Burns zoompan filter)
 - Analytics: JSON flat file (redditvideo/data/analytics.json)
 - Charts: Plotly
@@ -45,7 +45,7 @@ A full content creation pipeline that turns top Reddit posts into viral short-fo
 1. **Search Reddit** — search any subreddit(s), filter by time/score/type, select a post
 2. **Script Generator** — AI-powered script with platform presets (YouTube Short, TikTok, Reel, etc.)
 3. **Voiceover** — free gTTS narration with language + speed options
-4. **Images** — Ken Burns slideshow images (stock or placeholder, auto-prompted from script)
+4. **Images** — Ken Burns slideshow images (AI-generated/stock/placeholder, auto-prompted from script). AI is the default and matches each slide to the script subject.
 5. **Assemble Video** — FFmpeg-powered video assembly with download + YouTube upload
 6. **Analytics** — usage charts, platform/genre breakdowns, recent activity log
 

@@ -623,11 +623,47 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T22:55:51.478986+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "month",
+      "result_count": 5,
+      "timestamp": "2026-06-06T23:12:58.420028+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for joking that my dad gets a perpetual period in front of friends and family?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 127,
+      "timestamp": "2026-06-06T23:13:04.530845+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for joking that my dad gets a perpetual period in front of friends and family?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 63.8,
+      "file_size_mb": 13.37,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_joking_that_my_dad_gets_a_perpe_20260606_231313.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_83959119.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T23:13:54.543381+00:00"
     }
   ],
   "stats": {
-    "total_videos": 17,
-    "total_scripts": 18,
-    "total_searches": 18
+    "total_videos": 18,
+    "total_scripts": 19,
+    "total_searches": 19
   }
 }

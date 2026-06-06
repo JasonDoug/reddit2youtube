@@ -9,31 +9,43 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
 
-_STOPWORDS = {
-    "a","an","the","and","or","of","in","on","at","with","for",
-    "to","by","from","as","is","was","are","were","be","been",
-    "being","that","this","it","its","their","they","we","you","i",
-    "he","she","but","not","no","so","about","after","before","when",
-}
 
-
-def _extract_keywords(prompt: str, max_words: int = 3) -> str:
-    words = [
-        w.lower().strip(".,!?;:'\"")
-        for w in prompt.split()
-        if w.lower().strip(".,!?;:'\"") not in _STOPWORDS
-        and len(w.strip(".,!?;:'\"")) > 2
-    ]
-    return ",".join(words[:max_words]) if words else "nature"
-
-
-def fetch_stock_image(query: str, index: int = 0) -> str | None:
+def prepare_images_for_video(
+    image_prompts: list[str],
+    use_stock: bool = True,
+    aspect_ratio: str = "16:9",
+) -> list[str]:
     """
-    Fetch a topic-matched image. Priority order:
+    Fetch / generate one image per prompt and return resized file paths.
+    A base_seed derived from the full prompt list ensures every slide in
+    one batch gets a *different* Picsum photo ID.
+    """
+    # Seed derived from the combined prompts so each script gets its own
+    # starting offset in the Picsum library.
+    combined = "|".join(image_prompts)
+    base_seed = int(hashlib.md5(combined.encode()).hexdigest()[:6], 16) % 500
+
+    image_paths = []
+    for i, prompt in enumerate(image_prompts):
+        if use_stock:
+            path = _fetch_stock_image(prompt, index=i, base_seed=base_seed)
+        else:
+            path = _create_placeholder_image(prompt, i)
+        if path:
+            image_paths.append(_resize_for_aspect(path, aspect_ratio))
+
+    return image_paths
+
+
+# ── Image fetchers ────────────────────────────────────────────────────────────
+
+def _fetch_stock_image(query: str, index: int, base_seed: int) -> str | None:
+    """
+    Priority:
       1. Unsplash  (if UNSPLASH_ACCESS_KEY is set)
       2. Pexels    (if PEXELS_API_KEY is set)
-      3. Loremflickr — free, keyword-matched real photos, no API key needed
-      4. Stylised gradient placeholder (offline fallback)
+      3. Picsum Photos — free, guaranteed unique per slide, no API key needed
+      4. Gradient placeholder — offline last resort
     """
     try:
         # ── 1. Unsplash ───────────────────────────────────────────────────────
@@ -49,7 +61,7 @@ def fetch_stock_image(query: str, index: int = 0) -> str | None:
                     if isinstance(data, list)
                     else data["urls"]["regular"]
                 )
-                return _download_image(img_url, f"unsplash_{query}", index)
+                return _download_and_cache(img_url, f"unsplash_{query}", index)
 
         # ── 2. Pexels ─────────────────────────────────────────────────────────
         pexels_key = os.environ.get("PEXELS_API_KEY", "")
@@ -62,35 +74,37 @@ def fetch_stock_image(query: str, index: int = 0) -> str | None:
                 photos = r.json().get("photos", [])
                 if photos:
                     img_url = photos[index % len(photos)]["src"]["large"]
-                    return _download_image(img_url, f"pexels_{query}", index)
+                    return _download_and_cache(img_url, f"pexels_{query}", index)
 
-        # ── 3. Loremflickr (free, keyword-matched) ────────────────────────────
-        return _fetch_loremflickr(query, index)
+        # ── 3. Picsum Photos (free, guaranteed unique per slide) ──────────────
+        return _fetch_picsum(base_seed, index)
 
     except Exception:
-        return _fetch_loremflickr(query, index)
+        return _fetch_picsum(base_seed, index)
 
 
-def _fetch_loremflickr(query: str, index: int) -> str:
+def _fetch_picsum(base_seed: int, index: int) -> str:
     """
-    Download a keyword-matched photo from loremflickr.com.
-    Each unique (query, index) pair fetches a fresh photo and caches it locally.
-    No lock parameter → loremflickr returns different photos per request,
-    giving variety across slides even when keywords are similar.
-    Falls back to Picsum (random real photo) if loremflickr fails, then
-    gradient placeholder if fully offline.
+    Download a unique photo from Picsum Photos (https://picsum.photos).
+
+    Photo ID formula: (base_seed + index * 97) % 1000
+    • 97 is prime and coprime with 1000 → no repeats within a 1000-slide run
+    • base_seed varies per script → different scripts get different photo sets
+    • Cached by photo ID → same ID never downloaded twice
     """
-    keywords = _extract_keywords(query, max_words=2)
-    cache_key = hashlib.md5(f"{query}{index}".encode()).hexdigest()[:10]
-    cache_path = OUTPUT_DIR / f"lf_{cache_key}.jpg"
+    photo_id = (base_seed + index * 97) % 1000
+    cache_path = OUTPUT_DIR / f"picsum_{photo_id:04d}.jpg"
 
     if cache_path.exists():
         return str(cache_path)
 
-    # ── Try loremflickr (topic-matched, no lock so each slide is unique) ─────
     try:
-        url = f"https://loremflickr.com/1920/1080/{keywords}"
-        r = requests.get(url, timeout=20, allow_redirects=True)
+        # seed-based URL: always returns a valid photo (no 404s unlike /id/)
+        r = requests.get(
+            f"https://picsum.photos/seed/{photo_id}/1920/1080",
+            timeout=20,
+            allow_redirects=True,
+        )
         r.raise_for_status()
         with open(cache_path, "wb") as f:
             f.write(r.content)
@@ -99,31 +113,12 @@ def _fetch_loremflickr(query: str, index: int) -> str:
         img.save(str(cache_path), "JPEG", quality=92)
         return str(cache_path)
     except Exception:
-        pass
-
-    # ── Fallback: Picsum with a unique photo ID per slide ────────────────────
-    try:
-        # Use a prime-offset formula so consecutive slides get clearly
-        # different photo IDs (Picsum has ~1000 photos, IDs 0-999).
-        base = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 500
-        photo_id = (base + index * 137) % 1000
-        url = f"https://picsum.photos/id/{photo_id}/1920/1080"
-        r = requests.get(url, timeout=20, allow_redirects=True)
-        r.raise_for_status()
-        with open(cache_path, "wb") as f:
-            f.write(r.content)
-        img = Image.open(cache_path).convert("RGB")
-        img = img.resize((1920, 1080), Image.LANCZOS)
-        img.save(str(cache_path), "JPEG", quality=92)
-        return str(cache_path)
-    except Exception:
-        return _create_placeholder_image(query, index)
+        return _create_placeholder_image(f"slide {index + 1}", index)
 
 
-def _download_image(url: str, cache_key: str, index: int) -> str:
+def _download_and_cache(url: str, cache_key: str, index: int) -> str:
     h = hashlib.md5(f"{cache_key}{index}".encode()).hexdigest()[:8]
-    filename = f"img_{h}.jpg"
-    path = OUTPUT_DIR / filename
+    path = OUTPUT_DIR / f"img_{h}.jpg"
     if path.exists():
         return str(path)
     r = requests.get(url, timeout=15)
@@ -136,8 +131,10 @@ def _download_image(url: str, cache_key: str, index: int) -> str:
     return str(path)
 
 
+# ── Placeholder (offline fallback) ───────────────────────────────────────────
+
 def _create_placeholder_image(query: str, index: int) -> str:
-    """Vibrant gradient placeholder — used only when the network is offline."""
+    """Vibrant gradient card — used only when fully offline."""
     PALETTES = [
         ((25,  90, 170), (100, 200, 255)),
         ((170, 30, 100), (255, 130, 180)),
@@ -151,10 +148,10 @@ def _create_placeholder_image(query: str, index: int) -> str:
     draw = ImageDraw.Draw(img)
     for x in range(1920):
         t = x / 1919
-        r = int(dark[0] + (light[0] - dark[0]) * t)
-        g = int(dark[1] + (light[1] - dark[1]) * t)
-        b = int(dark[2] + (light[2] - dark[2]) * t)
-        draw.line([(x, 0), (x, 1080)], fill=(r, g, b))
+        r_ = int(dark[0] + (light[0] - dark[0]) * t)
+        g_ = int(dark[1] + (light[1] - dark[1]) * t)
+        b_ = int(dark[2] + (light[2] - dark[2]) * t)
+        draw.line([(x, 0), (x, 1080)], fill=(r_, g_, b_))
 
     overlay = Image.new("RGB", (1920, 220), (0, 0, 0))
     img.paste(overlay, (0, 430))
@@ -162,16 +159,13 @@ def _create_placeholder_image(query: str, index: int) -> str:
     try:
         font_lg = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 64)
-        font_sm = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
     except Exception:
         font_lg = ImageFont.load_default()
-        font_sm = font_lg
 
     text = query[:70]
     bbox = draw.textbbox((0, 0), text, font=font_lg)
-    draw.text(((1920 - (bbox[2] - bbox[0])) // 2, 460), text,
-              fill=(255, 255, 255), font=font_lg)
+    draw.text(((1920 - (bbox[2] - bbox[0])) // 2, 460),
+              text, fill=(255, 255, 255), font=font_lg)
 
     h = hashlib.md5(f"{query}{index}".encode()).hexdigest()[:8]
     path = OUTPUT_DIR / f"placeholder_{h}.jpg"
@@ -179,18 +173,7 @@ def _create_placeholder_image(query: str, index: int) -> str:
     return str(path)
 
 
-def prepare_images_for_video(
-    image_prompts: list[str],
-    use_stock: bool = True,
-    aspect_ratio: str = "16:9",
-) -> list[str]:
-    image_paths = []
-    for i, prompt in enumerate(image_prompts):
-        path = fetch_stock_image(prompt, i) if use_stock else _create_placeholder_image(prompt, i)
-        if path:
-            image_paths.append(_resize_for_aspect(path, aspect_ratio))
-    return image_paths
-
+# ── Resize helper ─────────────────────────────────────────────────────────────
 
 def _resize_for_aspect(path: str, aspect_ratio: str) -> str:
     ratios = {
@@ -202,9 +185,7 @@ def _resize_for_aspect(path: str, aspect_ratio: str) -> str:
     target_w, target_h = ratios.get(aspect_ratio, (1920, 1080))
     img = Image.open(path).convert("RGB")
     src_w, src_h = img.size
-    src_ratio = src_w / src_h
-    tgt_ratio = target_w / target_h
-    if src_ratio > tgt_ratio:
+    if src_w / src_h > target_w / target_h:
         new_h = target_h
         new_w = int(src_w * (target_h / src_h))
     else:
@@ -218,3 +199,9 @@ def _resize_for_aspect(path: str, aspect_ratio: str) -> str:
     out_path = p.parent / f"{p.stem}_{aspect_ratio.replace(':', 'x')}.jpg"
     img.save(str(out_path), "JPEG", quality=90)
     return str(out_path)
+
+
+# Public alias kept for any direct callers elsewhere in the codebase
+def fetch_stock_image(query: str, index: int = 0) -> str | None:
+    base_seed = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 500
+    return _fetch_stock_image(query, index, base_seed)

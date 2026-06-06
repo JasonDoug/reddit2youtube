@@ -479,11 +479,83 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T21:23:40.255379+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amioverreacting"
+      ],
+      "time_filter": "year",
+      "result_count": 6,
+      "timestamp": "2026-06-06T21:26:35.931688+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AIO - my friend gave my abusive ex my new phone number",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 152,
+      "timestamp": "2026-06-06T21:26:46.027701+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AIO - my friend gave my abusive ex my new phone number",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 77.3,
+      "file_size_mb": 11.56,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AIO_-_my_friend_gave_my_abusive_ex_my_ne_20260606_212706.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_cb3e7507.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T21:27:44.159654+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Askreddit"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T21:28:41.173150+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "What was the scariest \u201cWe need to leave\u2026 now\u201d gut feeling that you\u2019ve ever experienced?[Serious]",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 140,
+      "timestamp": "2026-06-06T21:28:46.544480+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "What was the scariest \u201cWe need to leave\u2026 now\u201d gut feeling that you\u2019ve ever experienced?[Serious]",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 67.4,
+      "file_size_mb": 30.39,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/What_was_the_scariest__We_need_to_leave__20260606_212903.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_ec809865.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T21:29:38.976653+00:00"
     }
   ],
   "stats": {
-    "total_videos": 13,
-    "total_scripts": 14,
-    "total_searches": 14
+    "total_videos": 15,
+    "total_scripts": 16,
+    "total_searches": 16
   }
 }

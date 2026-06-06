@@ -1,0 +1,1 @@
+- [FFmpeg zoompan slideshow pitfall](ffmpeg-zoompan-slideshow.md) — looped-still zoompan emits d frames PER input frame and collapses the video to image #1; cut each slide with trim and drive images+subtitles from one frame-aligned slide_dur.

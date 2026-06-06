@@ -39,6 +39,11 @@ def assemble_video(
 
     per_image_duration = max(audio_duration / len(image_paths), 2.0)
 
+    # Frame-align the slide duration so the image change, the zoompan length,
+    # and the subtitle window all land on exactly the same frame boundary.
+    slide_frames = max(int(round(fps * per_image_duration)), 1)
+    slide_dur = slide_frames / fps
+
     ratios = {
         "16:9": (1920, 1080),
         "9:16": (1080, 1920),
@@ -55,39 +60,46 @@ def assemble_video(
 
         for i, img_path in enumerate(image_paths):
             prepared = _prepare_image(img_path, target_w, target_h, tmp_dir, i)
-            input_args.extend(["-loop", "1", "-t",
-                                str(per_image_duration + transition_duration),
+            input_args.extend(["-loop", "1", "-t", f"{slide_dur:.4f}",
                                 "-i", prepared])
 
         if ken_burns:
+            # Upscale before zoompan for smooth sub-pixel panning, then trim
+            # each slide to exactly slide_frames so zoompan's per-input-frame
+            # expansion can't bleed past the slide and swallow later images.
+            big_w, big_h = target_w * 2, target_h * 2
+            s = f"{target_w}x{target_h}"
             for i in range(len(image_paths)):
                 zoom_dir = i % 4
-                d = int(fps * per_image_duration)
-                s = f"{target_w}x{target_h}"
                 if zoom_dir == 0:
-                    zp = f"zoompan=z='min(zoom+0.001,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={d}:s={s}:fps={fps}"
+                    zexpr = "z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
                 elif zoom_dir == 1:
-                    zp = f"zoompan=z='if(lte(zoom,1.0),1.5,max(1.001,zoom-0.001))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={d}:s={s}:fps={fps}"
+                    zexpr = "z='if(lte(zoom,1.0),1.5,max(1.0015,zoom-0.0015))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
                 elif zoom_dir == 2:
-                    zp = f"zoompan=z='min(zoom+0.001,1.3)':x='0':y='0':d={d}:s={s}:fps={fps}"
+                    zexpr = "z='min(zoom+0.0015,1.3)':x='0':y='0'"
                 else:
-                    zp = f"zoompan=z='min(zoom+0.001,1.3)':x='iw-iw/zoom':y='ih-ih/zoom':d={d}:s={s}:fps={fps}"
-                filter_parts.append(f"[{i}:v]{zp},setsar=1[v{i}]")
+                    zexpr = "z='min(zoom+0.0015,1.3)':x='iw-iw/zoom':y='ih-ih/zoom'"
+                filter_parts.append(
+                    f"[{i}:v]scale={big_w}:{big_h},"
+                    f"zoompan={zexpr}:d={slide_frames}:s={s}:fps={fps},"
+                    f"trim=duration={slide_dur:.4f},setpts=PTS-STARTPTS,"
+                    f"setsar=1[v{i}]"
+                )
         else:
             for i in range(len(image_paths)):
                 filter_parts.append(
-                    f"[{i}:v]scale={target_w}:{target_h},setsar=1[v{i}]")
+                    f"[{i}:v]scale={target_w}:{target_h},setsar=1,fps={fps},"
+                    f"trim=duration={slide_dur:.4f},setpts=PTS-STARTPTS[v{i}]")
 
         concat_inputs = "".join(f"[v{i}]" for i in range(len(image_paths)))
         filter_parts.append(
             f"{concat_inputs}concat=n={len(image_paths)}:v=1:a=0[vout]")
 
         # ── Burned-in subtitles ───────────────────────────────────────────────
-        # Use the frame-rounded duration (int(fps*t)/fps) so subtitle windows
-        # are in exact sync with zoompan's d= frame count.
-        actual_slide_dur = int(fps * per_image_duration) / fps
+        # Use the same frame-aligned slide_dur as the images so each caption
+        # appears/disappears on exactly the same beat the image changes.
         subtitle_chain, sub_files = _build_subtitle_filters(
-            script_text, len(image_paths), actual_slide_dur, tmp_dir, target_h
+            script_text, len(image_paths), slide_dur, tmp_dir, target_h
         )
         if subtitle_chain:
             filter_parts.append(f"[vout]{subtitle_chain}[vfinal]")

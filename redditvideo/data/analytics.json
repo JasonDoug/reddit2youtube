@@ -443,11 +443,47 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T21:14:37.770953+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "year",
+      "result_count": 5,
+      "timestamp": "2026-06-06T21:22:28.527626+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for enforcing basic boundaries on my daughter's sleepover?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 160,
+      "timestamp": "2026-06-06T21:22:35.223227+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for enforcing basic boundaries on my daughter's sleepover?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 83.9,
+      "file_size_mb": 20.13,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_enforcing_basic_boundaries_on_m_20260606_212255.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_5deb091c.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T21:23:40.255379+00:00"
     }
   ],
   "stats": {
-    "total_videos": 12,
-    "total_scripts": 13,
-    "total_searches": 13
+    "total_videos": 13,
+    "total_scripts": 14,
+    "total_searches": 14
   }
 }

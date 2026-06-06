@@ -407,11 +407,47 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T19:58:23.918235+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amioverreacting"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T21:13:29.137169+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AIO, My long distance bf went to a party. I asked him how it went and this was his response.",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 136,
+      "timestamp": "2026-06-06T21:13:36.794455+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AIO, My long distance bf went to a party. I asked him how it went and this was his response.",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 71.7,
+      "file_size_mb": 31.99,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AIO__My_long_distance_bf_went_to_a_party_20260606_211359.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_930857b3.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T21:14:37.770953+00:00"
     }
   ],
   "stats": {
-    "total_videos": 11,
-    "total_scripts": 12,
-    "total_searches": 12
+    "total_videos": 12,
+    "total_scripts": 13,
+    "total_searches": 13
   }
 }

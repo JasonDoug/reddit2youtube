@@ -83,8 +83,11 @@ def assemble_video(
             f"{concat_inputs}concat=n={len(image_paths)}:v=1:a=0[vout]")
 
         # ── Burned-in subtitles ───────────────────────────────────────────────
+        # Use the frame-rounded duration (int(fps*t)/fps) so subtitle windows
+        # are in exact sync with zoompan's d= frame count.
+        actual_slide_dur = int(fps * per_image_duration) / fps
         subtitle_chain, sub_files = _build_subtitle_filters(
-            script_text, len(image_paths), per_image_duration, tmp_dir, target_h
+            script_text, len(image_paths), actual_slide_dur, tmp_dir, target_h
         )
         if subtitle_chain:
             filter_parts.append(f"[vout]{subtitle_chain}[vfinal]")

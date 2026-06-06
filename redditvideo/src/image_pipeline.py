@@ -74,19 +74,40 @@ def fetch_stock_image(query: str, index: int = 0) -> str | None:
 def _fetch_loremflickr(query: str, index: int) -> str:
     """
     Download a keyword-matched photo from loremflickr.com.
-    Uses the prompt keywords so images are topic-relevant.
-    The `lock` integer makes results deterministic per prompt+index.
-    Falls back to a gradient placeholder if the network is unavailable.
+    Each unique (query, index) pair fetches a fresh photo and caches it locally.
+    No lock parameter → loremflickr returns different photos per request,
+    giving variety across slides even when keywords are similar.
+    Falls back to Picsum (random real photo) if loremflickr fails, then
+    gradient placeholder if fully offline.
     """
     keywords = _extract_keywords(query, max_words=2)
-    seed_int = int(hashlib.md5(f"{query}{index}".encode()).hexdigest()[:8], 16) % 10000
-    cache_path = OUTPUT_DIR / f"lf_{hashlib.md5(f'{query}{index}'.encode()).hexdigest()[:10]}.jpg"
+    cache_key = hashlib.md5(f"{query}{index}".encode()).hexdigest()[:10]
+    cache_path = OUTPUT_DIR / f"lf_{cache_key}.jpg"
 
     if cache_path.exists():
         return str(cache_path)
 
+    # ── Try loremflickr (topic-matched, no lock so each slide is unique) ─────
     try:
-        url = f"https://loremflickr.com/1920/1080/{keywords}?lock={seed_int}"
+        url = f"https://loremflickr.com/1920/1080/{keywords}"
+        r = requests.get(url, timeout=20, allow_redirects=True)
+        r.raise_for_status()
+        with open(cache_path, "wb") as f:
+            f.write(r.content)
+        img = Image.open(cache_path).convert("RGB")
+        img = img.resize((1920, 1080), Image.LANCZOS)
+        img.save(str(cache_path), "JPEG", quality=92)
+        return str(cache_path)
+    except Exception:
+        pass
+
+    # ── Fallback: Picsum with a unique photo ID per slide ────────────────────
+    try:
+        # Use a prime-offset formula so consecutive slides get clearly
+        # different photo IDs (Picsum has ~1000 photos, IDs 0-999).
+        base = int(hashlib.md5(query.encode()).hexdigest()[:6], 16) % 500
+        photo_id = (base + index * 137) % 1000
+        url = f"https://picsum.photos/id/{photo_id}/1920/1080"
         r = requests.get(url, timeout=20, allow_redirects=True)
         r.raise_for_status()
         with open(cache_path, "wb") as f:

@@ -155,11 +155,155 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T17:29:20.908385+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T17:42:11.752098+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 158,
+      "timestamp": "2026-06-06T17:42:17.579573+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 68.9,
+      "file_size_mb": 8.33,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260606_174223.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_61e7b217.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T17:42:50.725434+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Python"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T17:44:07.359072+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "I just learned round() uses bankers' rounding",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 117,
+      "timestamp": "2026-06-06T17:44:14.142881+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "I just learned round() uses bankers' rounding",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 81.5,
+      "file_size_mb": 18.41,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/I_just_learned_round___uses_bankers__rou_20260606_174421.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_ac6f306b.mp3",
+      "num_images": 5,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T17:44:58.739117+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Python"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T17:45:55.615527+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "I just learned round() uses bankers' rounding",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 130,
+      "timestamp": "2026-06-06T17:46:02.196205+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "I just learned round() uses bankers' rounding",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 78.0,
+      "file_size_mb": 18.99,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/I_just_learned_round___uses_bankers__rou_20260606_174611.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_3837a68f.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T17:46:53.441213+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 4,
+      "timestamp": "2026-06-06T17:47:56.154721+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 145,
+      "timestamp": "2026-06-06T17:48:03.625146+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 63.4,
+      "file_size_mb": 18.07,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260606_174810.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_f46cb050.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T17:48:46.592980+00:00"
     }
   ],
   "stats": {
-    "total_videos": 4,
-    "total_scripts": 5,
-    "total_searches": 5
+    "total_videos": 8,
+    "total_scripts": 9,
+    "total_searches": 9
   }
 }

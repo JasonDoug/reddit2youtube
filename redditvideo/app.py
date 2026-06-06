@@ -910,52 +910,52 @@ elif page == "⚡ Pipeline Runner":
                                 st.error(fail_msg)
                                 s1.update(label=f"❌  Step 1 — {fail_msg}", state="error", expanded=True)
                                 run_ok = False
-                        else:
-                            # Sort & stats
-                            all_posts.sort(key=lambda p: p.get("score", 0), reverse=True)
-                            top_score  = all_posts[0]["score"]
-                            avg_score  = sum(p["score"] for p in all_posts) // len(all_posts)
-                            top_ratio  = all_posts[0]["upvote_ratio"]
-
-                            st.write("**Top posts found:**")
-                            for i, p in enumerate(all_posts[:5]):
-                                st.markdown(
-                                    f"&nbsp;&nbsp;`#{i+1}` **{p['title'][:70]}{'…' if len(p['title'])>70 else ''}**  "
-                                    f"⬆️ {p['score']:,} · 💬 {p['num_comments']:,} · "
-                                    f"r/{p['subreddit']}"
-                                )
-
-                            # pick
-                            if pr_pick == "Let me pick after search":
-                                st.info("Pausing — choose a post below, then re-run the pipeline.")
-                                s1.update(label="⏸  Step 1 — Search Reddit: awaiting your selection", state="complete")
-                                st.session_state.posts = all_posts
-                                run_ok = False
                             else:
-                                pick_idx = min(int(pr_pick[1]) - 1, len(all_posts) - 1)
-                                post = all_posts[pick_idx]
-                                st.session_state.selected_post = post
-                                log_search(subs, pr_time if pr_sort == "Top" else "hot", len(all_posts))
+                                # Sort & stats
+                                all_posts.sort(key=lambda p: p.get("score", 0), reverse=True)
+                                top_score  = all_posts[0]["score"]
+                                avg_score  = sum(p["score"] for p in all_posts) // len(all_posts)
+                                top_ratio  = all_posts[0]["upvote_ratio"]
 
-                                st.markdown("---")
-                                st.write(f"**Selected post (#{pick_idx+1}):**")
-                                m1, m2, m3, m4 = st.columns(4)
-                                m1.metric("Score",    f"{post['score']:,}")
-                                m2.metric("Comments", f"{post['num_comments']:,}")
-                                m3.metric("Ratio",    f"{post['upvote_ratio']:.0%}")
-                                m4.metric("Awards",   post.get("awards", 0))
-                                st.info(f"**{post['title']}**  \nr/{post['subreddit']} · by u/{post['author']}")
-                                if post.get("selftext"):
-                                    with st.expander("Post body preview"):
-                                        st.caption(post["selftext"][:500])
+                                st.write("**Top posts found:**")
+                                for i, p in enumerate(all_posts[:5]):
+                                    st.markdown(
+                                        f"&nbsp;&nbsp;`#{i+1}` **{p['title'][:70]}{'…' if len(p['title'])>70 else ''}**  "
+                                        f"⬆️ {p['score']:,} · 💬 {p['num_comments']:,} · "
+                                        f"r/{p['subreddit']}"
+                                    )
 
-                                elapsed = time.time() - t0
-                                timings["search"] = elapsed
-                                s1.update(
-                                    label=f"✅  Step 1 — Search Reddit  ({elapsed:.1f}s)  ·  "
-                                          f"Selected: \"{post['title'][:55]}{'…' if len(post['title'])>55 else ''}\"",
-                                    state="complete", expanded=False,
-                                )
+                                # pick
+                                if pr_pick == "Let me pick after search":
+                                    st.info("Pausing — choose a post below, then re-run the pipeline.")
+                                    s1.update(label="⏸  Step 1 — Search Reddit: awaiting your selection", state="complete")
+                                    st.session_state.posts = all_posts
+                                    run_ok = False
+                                else:
+                                    pick_idx = min(int(pr_pick[1]) - 1, len(all_posts) - 1)
+                                    post = all_posts[pick_idx]
+                                    st.session_state.selected_post = post
+                                    log_search(subs, pr_time if pr_sort == "Top" else "hot", len(all_posts))
+
+                                    st.markdown("---")
+                                    st.write(f"**Selected post (#{pick_idx+1}):**")
+                                    m1, m2, m3, m4 = st.columns(4)
+                                    m1.metric("Score",    f"{post['score']:,}")
+                                    m2.metric("Comments", f"{post['num_comments']:,}")
+                                    m3.metric("Ratio",    f"{post['upvote_ratio']:.0%}")
+                                    m4.metric("Awards",   post.get("awards", 0))
+                                    st.info(f"**{post['title']}**  \nr/{post['subreddit']} · by u/{post['author']}")
+                                    if post.get("selftext"):
+                                        with st.expander("Post body preview"):
+                                            st.caption(post["selftext"][:500])
+
+                                    elapsed = time.time() - t0
+                                    timings["search"] = elapsed
+                                    s1.update(
+                                        label=f"✅  Step 1 — Search Reddit  ({elapsed:.1f}s)  ·  "
+                                              f"Selected: \"{post['title'][:55]}{'…' if len(post['title'])>55 else ''}\"",
+                                        state="complete", expanded=False,
+                                    )
                     except Exception as ex:
                         st.error(f"Reddit API error: {ex}")
                         s1.update(label=f"❌  Step 1 — Search Reddit: {ex}", state="error")

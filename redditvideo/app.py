@@ -802,6 +802,13 @@ elif page == "⚡ Pipeline Runner":
         timings   = {}          # step_name → elapsed seconds
         pipeline_start = time.time()
 
+        # ── Initialise outputs from previous runs (safe defaults) ──────────────
+        post         = st.session_state.get("selected_post", None)
+        script_result = st.session_state.get("script",        None)
+        voice_result  = st.session_state.get("voiceover",     None)
+        image_paths   = st.session_state.get("images",        [])
+        video_result  = st.session_state.get("video",         None)
+
         # ── Overall progress bar (stays at top) ────────────────────────────────
         total_steps  = len(last_steps)
         overall_bar  = st.progress(0, text="Starting pipeline…")
@@ -927,9 +934,13 @@ elif page == "⚡ Pipeline Runner":
                         s1.update(label=f"❌  Step 1 — Search Reddit: {ex}", state="error")
                         run_ok = False
         else:
-            post = st.session_state.selected_post
+            post = st.session_state.get("selected_post", None)
 
         # ══ STEP 2 — SCRIPT GENERATION ════════════════════════════════════════
+        if run_script and run_ok and post is None:
+            st.error("No post selected — enable Step 1 (Search Reddit) or run a search first.")
+            run_ok = False
+
         if run_script and run_ok:
             t0 = time.time()
             step_n = sum([run_search]) + 1
@@ -990,7 +1001,7 @@ elif page == "⚡ Pipeline Runner":
                     s2.update(label=f"❌  Step 2 — Script: {ex}", state="error")
                     run_ok = False
         else:
-            script_result = st.session_state.script
+            script_result = st.session_state.get("script", None)
 
         # ══ STEP 3 — VOICEOVER ════════════════════════════════════════════════
         if run_voice and run_ok:
@@ -1040,7 +1051,7 @@ elif page == "⚡ Pipeline Runner":
                     s3.update(label=f"❌  Step 3 — Voiceover: {ex}", state="error")
                     run_ok = False
         else:
-            voice_result = st.session_state.voiceover
+            voice_result = st.session_state.get("voiceover", None)
 
         # ══ STEP 4 — IMAGES ══════════════════════════════════════════════════
         if run_images and run_ok:
@@ -1090,7 +1101,7 @@ elif page == "⚡ Pipeline Runner":
                     s4.update(label=f"❌  Step 4 — Images: {ex}", state="error")
                     run_ok = False
         else:
-            image_paths = st.session_state.images
+            image_paths = st.session_state.get("images", [])
 
         # ══ STEP 5 — VIDEO ASSEMBLY ═══════════════════════════════════════════
         if run_video and run_ok:

@@ -15,8 +15,11 @@ from src.script_generator import generate_script, PRESETS, PROVIDERS, OPENROUTER
 from src.voiceover import generate_voiceover, GTTS_LANGUAGES
 from src.image_pipeline import prepare_images_for_video, fetch_stock_image
 from src.video_assembler import assemble_video
-from src.analytics import log_search, log_script, log_video, log_publish, get_stats
-from src.youtube_uploader import upload_to_youtube, is_youtube_configured
+from src.analytics import (
+    log_search, log_script, log_video, log_publish, get_stats,
+    update_video_youtube_id, update_video_youtube_stats,
+)
+from src.youtube_uploader import upload_to_youtube, is_youtube_configured, fetch_video_stats
 
 st.set_page_config(
     page_title="Reddit Video Pipeline",
@@ -546,76 +549,207 @@ elif page == "🎥 Assemble Video":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 6 — ANALYTICS
+# PAGE 6 — ANALYTICS DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "📊 Analytics":
-    st.header("📊 Usage Analytics")
+    st.header("📊 Analytics Dashboard")
 
-    stats = get_stats()
+    # ── Revenue settings ─────────────────────────────────────────────────────
+    with st.expander("⚙️ Revenue settings", expanded=False):
+        cpm = st.slider(
+            "YouTube CPM — $ per 1,000 views",
+            min_value=0.5, max_value=15.0, value=2.0, step=0.5,
+            help="Typical: $1–4 for regular videos · $0.03–0.06 for Shorts. Adjust to match your channel.",
+        )
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Searches", stats["total_searches"])
-    col2.metric("Scripts Generated", stats["total_scripts"])
-    col3.metric("Videos Created", stats["total_videos"])
-    col4.metric("Published", stats["total_publishes"])
+    stats   = get_stats()
+    videos  = stats.get("all_videos", [])
+    published_vids = [v for v in videos if v.get("youtube_video_id")]
 
-    if stats["total_videos"] > 0:
-        c1, c2 = st.columns(2)
-        c1.metric("Total Video Duration", f"{stats['total_duration_sec'] / 60:.1f} min")
-        c2.metric("Total Storage Used", f"{stats['total_size_mb']:.1f} MB")
+    total_views   = stats.get("total_views", 0)
+    total_revenue = total_views / 1000 * cpm
+
+    # ── KPI row ───────────────────────────────────────────────────────────────
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("🎬 Videos Made",   stats["total_videos"])
+    k2.metric("👁️ Total Views",   f"{total_views:,}")
+    k3.metric("💰 Est. Revenue",  f"${total_revenue:,.2f}")
+    k4.metric("🚀 Published",     len(published_vids))
+    k5.metric("⏱️ Total Runtime", f"{stats['total_duration_sec'] / 60:.1f} min")
+
+    # ── Refresh YouTube stats ─────────────────────────────────────────────────
+    if published_vids:
+        st.markdown("---")
+        ref_col, _ = st.columns([1, 4])
+        if ref_col.button("🔄 Refresh YouTube Stats", use_container_width=True,
+                          help="Pulls live view / like / comment counts from YouTube"):
+            with st.spinner("Fetching stats from YouTube…"):
+                refreshed, errors = 0, []
+                for v in published_vids:
+                    vid_id = v.get("youtube_video_id", "")
+                    if not vid_id:
+                        continue
+                    result = fetch_video_stats(vid_id)
+                    if "error" in result:
+                        errors.append(result["error"])
+                    else:
+                        update_video_youtube_stats(vid_id, result["views"], result["likes"], result.get("comments", 0))
+                        refreshed += 1
+                if refreshed:
+                    st.success(f"Updated stats for {refreshed} video(s).")
+                    st.rerun()
+                else:
+                    st.warning(f"Could not fetch stats. {errors[0] if errors else 'Check YouTube credentials.'}")
 
     st.markdown("---")
 
-    col_left, col_right = st.columns(2)
+    # ── Views & Revenue charts (only if we have data) ─────────────────────────
+    if videos and any(v.get("views", 0) > 0 for v in videos):
+        view_data = sorted(
+            [
+                {
+                    "Title":   v.get("post_title", "Untitled")[:35],
+                    "Views":   v.get("views", 0),
+                    "Revenue": round(v.get("views", 0) / 1000 * cpm, 2),
+                }
+                for v in videos if v.get("views", 0) > 0
+            ],
+            key=lambda x: x["Views"], reverse=True,
+        )
+        vdf_chart = pd.DataFrame(view_data)
+        ch1, ch2 = st.columns(2)
+        with ch1:
+            st.subheader("📊 Views by Video")
+            fv = px.bar(vdf_chart, x="Views", y="Title", orientation="h",
+                        color="Views", color_continuous_scale="Blues")
+            fv.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=280,
+                             yaxis_title="", coloraxis_showscale=False)
+            st.plotly_chart(fv, use_container_width=True)
+        with ch2:
+            st.subheader("💰 Est. Revenue by Video")
+            fr = px.bar(vdf_chart, x="Revenue", y="Title", orientation="h",
+                        color="Revenue", color_continuous_scale="Greens",
+                        labels={"Revenue": "Revenue ($)"})
+            fr.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=280,
+                             yaxis_title="", coloraxis_showscale=False)
+            st.plotly_chart(fr, use_container_width=True)
+        st.markdown("---")
 
+    # ── Platform / Genre breakdown ────────────────────────────────────────────
+    col_left, col_right = st.columns(2)
     with col_left:
+        st.subheader("Videos by Platform")
         if stats["platform_counts"]:
-            st.subheader("Videos by Platform")
             fig = px.pie(
                 names=list(stats["platform_counts"].keys()),
                 values=list(stats["platform_counts"].values()),
                 hole=0.4,
+                color_discrete_sequence=px.colors.qualitative.Set3,
             )
-            fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=300)
+            fig.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=260)
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.subheader("Videos by Platform")
             st.caption("No videos yet.")
 
     with col_right:
+        st.subheader("Videos by Genre")
         if stats["genre_counts"]:
-            st.subheader("Videos by Genre")
             fig2 = px.bar(
                 x=list(stats["genre_counts"].values()),
                 y=list(stats["genre_counts"].keys()),
                 orientation="h",
+                color_discrete_sequence=["#636EFA"],
             )
-            fig2.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=300, xaxis_title="Count", yaxis_title="")
+            fig2.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=260,
+                               xaxis_title="Count", yaxis_title="")
             st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.subheader("Videos by Genre")
             st.caption("No videos yet.")
 
+    # ── Top subreddits ────────────────────────────────────────────────────────
     if stats["subreddit_counts"]:
-        st.subheader("Most Searched Subreddits")
+        st.markdown("---")
+        st.subheader("🔍 Most Searched Subreddits")
         sub_df = pd.DataFrame([
             {"Subreddit": f"r/{k}", "Searches": v}
             for k, v in sorted(stats["subreddit_counts"].items(), key=lambda x: -x[1])[:10]
         ])
-        fig3 = px.bar(sub_df, x="Searches", y="Subreddit", orientation="h")
-        fig3.update_layout(margin=dict(t=20, b=20, l=10, r=10), height=300, yaxis_title="")
+        fig3 = px.bar(sub_df, x="Searches", y="Subreddit", orientation="h",
+                      color_discrete_sequence=["#FF6B35"])
+        fig3.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=260, yaxis_title="")
         st.plotly_chart(fig3, use_container_width=True)
 
+    # ── Video Library ─────────────────────────────────────────────────────────
+    if videos:
+        st.markdown("---")
+        st.subheader("🎬 Video Library")
+
+        cols_per_row = 3
+        rows = [videos[i : i + cols_per_row] for i in range(0, len(videos), cols_per_row)]
+
+        for row_vids in rows:
+            vcols = st.columns(cols_per_row)
+            for col, v in zip(vcols, row_vids):
+                with col:
+                    vid_id  = v.get("youtube_video_id", "")
+                    yt_url  = v.get("youtube_url", v.get("publish_url", ""))
+                    views   = v.get("views", 0)
+                    likes   = v.get("likes", 0)
+                    est_rev = round(views / 1000 * cpm, 2)
+
+                    # Thumbnail
+                    if vid_id:
+                        st.image(
+                            f"https://img.youtube.com/vi/{vid_id}/mqdefault.jpg",
+                            use_container_width=True,
+                        )
+                    else:
+                        st.markdown(
+                            '<div style="height:90px;background:#2a2a3e;border-radius:8px;'
+                            'display:flex;align-items:center;justify-content:center;'
+                            'font-size:2rem;">🎬</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    title = v.get("post_title", "Untitled")[:52]
+                    st.markdown(f"**{title}**")
+                    st.caption(f"`{v.get('platform','—')}` · `{v.get('genre','—')[:18]}`")
+
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("👁️", f"{views:,}"     if views else "—")
+                    m2.metric("👍", f"{likes:,}"     if likes else "—")
+                    m3.metric("💰", f"${est_rev:.2f}" if views else "—")
+
+                    st.caption(
+                        f"⏱️ {v.get('duration_sec', 0):.0f}s · "
+                        f"📦 {v.get('file_size_mb', 0):.1f} MB · "
+                        f"📅 {v.get('timestamp', '')[:10]}"
+                    )
+
+                    if yt_url:
+                        st.link_button("▶ Watch on YouTube", yt_url, use_container_width=True)
+                    elif os.path.exists(v.get("video_path", "")):
+                        with open(v["video_path"], "rb") as _f:
+                            st.download_button(
+                                "⬇️ Download",
+                                data=_f.read(),
+                                file_name=Path(v["video_path"]).name,
+                                mime="video/mp4",
+                                use_container_width=True,
+                            )
+                    st.markdown(" ")
+
+    # ── Recent Activity log ───────────────────────────────────────────────────
     st.markdown("---")
-    st.subheader("Recent Activity")
+    st.subheader("📋 Recent Activity")
     if stats["recent_jobs"]:
         activity_df = pd.DataFrame([
             {
-                "Time": j.get("timestamp", "")[:19].replace("T", " "),
-                "Type": j.get("type", "").upper(),
-                "Details": (
-                    f"r/{', '.join(j.get('subreddits', []))}" if j["type"] == "search"
-                    else j.get("post_title", j.get("video_path", ""))[:60]
+                "Time":     j.get("timestamp", "")[:19].replace("T", " "),
+                "Type":     j.get("type", "").upper(),
+                "Details":  (
+                    f"r/{', '.join(j.get('subreddits', []))}" if j.get("type") == "search"
+                    else j.get("post_title", j.get("url", j.get("video_path", "")))[:55]
                 ),
                 "Platform": j.get("platform", "—"),
             }
@@ -623,29 +757,13 @@ elif page == "📊 Analytics":
         ])
         st.dataframe(activity_df, use_container_width=True, hide_index=True)
     else:
-        st.caption("No activity yet. Start by searching Reddit!")
+        st.caption("No activity yet — run the Pipeline to generate your first video!")
 
-    if stats.get("all_videos"):
-        st.markdown("---")
-        st.subheader("All Videos")
-        vdf = pd.DataFrame([
-            {
-                "Title": v.get("post_title", "")[:50],
-                "Platform": v.get("platform", ""),
-                "Genre": v.get("genre", ""),
-                "Duration": f"{v.get('duration_sec', 0):.0f}s",
-                "Size": f"{v.get('file_size_mb', 0):.1f}MB",
-                "Images": v.get("num_images", 0),
-                "Published": "✅" if v.get("published") else "—",
-                "Created": v.get("timestamp", "")[:10],
-            }
-            for v in stats["all_videos"]
-        ])
-        st.dataframe(vdf, use_container_width=True, hide_index=True)
-
-    if st.button("🗑️ Clear Analytics Data"):
-        if (Path(__file__).parent / "data" / "analytics.json").exists():
-            os.remove(Path(__file__).parent / "data" / "analytics.json")
+    st.markdown("---")
+    if st.button("🗑️ Clear Analytics Data", type="secondary"):
+        _db_path = Path(__file__).parent / "data" / "analytics.json"
+        if _db_path.exists():
+            os.remove(_db_path)
             st.success("Analytics data cleared.")
             st.rerun()
 
@@ -659,12 +777,13 @@ elif page == "⚡ Pipeline Runner":
 
     # ── Step toggles ──────────────────────────────────────────────────────────
     st.subheader("Steps to run")
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     run_search   = c1.toggle("1 · Search Reddit",  value=True)
     run_script   = c2.toggle("2 · Script",          value=True,  disabled=not run_search)
     run_voice    = c3.toggle("3 · Voiceover",        value=True,  disabled=not run_script)
     run_images   = c4.toggle("4 · Images",           value=True,  disabled=not run_script)
     run_video    = c5.toggle("5 · Assemble Video",   value=True,  disabled=not (run_voice and run_images))
+    run_youtube  = c6.toggle("6 · YouTube",          value=False, disabled=not run_video)
 
     st.markdown("---")
 
@@ -764,15 +883,40 @@ elif page == "⚡ Pipeline Runner":
         with col_v3:
             pr_transition = st.slider("Transition (s)", 0.0, 2.0, 0.5, 0.1, key="pr_trans")
 
+    # ── Step 6 config: YouTube ────────────────────────────────────────────────
+    if run_youtube:
+        st.markdown("---")
+        st.subheader("6 · YouTube Upload")
+        if not is_youtube_configured():
+            st.warning(
+                "YouTube not configured — add a `YOUTUBE_CLIENT_SECRETS_JSON` secret "
+                "(OAuth2 JSON from Google Cloud Console → YouTube Data API v3) to enable upload."
+            )
+        col_yt1, col_yt2 = st.columns(2)
+        with col_yt1:
+            pr_yt_privacy = st.selectbox("Privacy", ["private", "unlisted", "public"], key="pr_yt_priv")
+        with col_yt2:
+            pr_yt_category = st.selectbox(
+                "Category",
+                ["Entertainment", "News & Politics", "Science & Technology", "Education", "People & Blogs"],
+                key="pr_yt_cat",
+            )
+        pr_yt_tags = st.text_input("Tags (comma-separated)", "reddit, viral", key="pr_yt_tags")
+    else:
+        pr_yt_privacy  = "private"
+        pr_yt_category = "Entertainment"
+        pr_yt_tags     = ""
+
     st.markdown("---")
 
     # ── Determine active steps ─────────────────────────────────────────────────
     last_steps = []
-    if run_search:  last_steps.append("Reddit search")
-    if run_script:  last_steps.append("script")
-    if run_voice:   last_steps.append("voiceover")
-    if run_images:  last_steps.append("images")
-    if run_video:   last_steps.append("video assembly")
+    if run_search:   last_steps.append("Reddit search")
+    if run_script:   last_steps.append("script")
+    if run_voice:    last_steps.append("voiceover")
+    if run_images:   last_steps.append("images")
+    if run_video:    last_steps.append("video assembly")
+    if run_youtube:  last_steps.append("YouTube upload")
     run_label = " → ".join(last_steps) if last_steps else "nothing"
 
     # ── Visual pipeline map (always visible) ───────────────────────────────────
@@ -782,6 +926,7 @@ elif page == "⚡ Pipeline Runner":
         ("🎙️", "Voiceover",     run_voice),
         ("🖼️", "Images",        run_images),
         ("🎥", "Video",         run_video),
+        ("🚀", "YouTube",       run_youtube),
     ]
 
     map_cols = st.columns(len(STEP_DEFS))
@@ -801,6 +946,8 @@ elif page == "⚡ Pipeline Runner":
         run_images = False
     if not run_voice or not run_images:
         run_video  = False
+    if not run_video:
+        run_youtube = False
 
     # ── Pre-run blockers ───────────────────────────────────────────────────────
     blockers = []
@@ -814,6 +961,8 @@ elif page == "⚡ Pipeline Runner":
         blockers.append("Step 4 (Images) needs a script — enable Step 2 (Script) or generate a script first.")
     if run_video and (not run_voice or not run_images) and (not st.session_state.get("voiceover") or not st.session_state.get("images")):
         blockers.append("Step 5 (Video) needs both voiceover and images — enable Steps 3 & 4 or run them first.")
+    if run_youtube and not run_video and not st.session_state.get("video"):
+        blockers.append("Step 6 (YouTube) needs a video — enable Step 5 (Assemble Video) or run it first.")
 
     for b in blockers:
         st.error(b)
@@ -1218,6 +1367,82 @@ elif page == "⚡ Pipeline Runner":
                     s5.update(label=f"❌  Step 5 — Video: {ex}", state="error")
                     run_ok = False
 
+        # ══ STEP 6 — YOUTUBE UPLOAD ═══════════════════════════════════════════
+        if run_youtube and run_ok:
+            t0 = time.time()
+            step_n = sum([run_search, run_script, run_voice, run_images, run_video]) + 1
+            _bar(step_n, "Uploading to YouTube…")
+
+            with st.status("🚀  Step 6 — YouTube Upload", expanded=True) as s6:
+                if not is_youtube_configured():
+                    st.error("YouTube not configured. Add YOUTUBE_CLIENT_SECRETS_JSON secret.")
+                    s6.update(label="❌  Step 6 — YouTube not configured", state="error")
+                    run_ok = False
+                else:
+                    yt_vid_title = post.get("title", "Reddit Video")[:100]
+                    yt_desc = (
+                        f"r/{post.get('subreddit', '')} — {post.get('selftext', '')[:400]}\n\n"
+                        f"Original post: https://reddit.com{post.get('permalink', '')}"
+                    )
+                    yt_tags_list = [t.strip() for t in pr_yt_tags.split(",") if t.strip()]
+                    CAT_MAP = {
+                        "Entertainment": "24", "News & Politics": "25",
+                        "Science & Technology": "28", "Education": "27",
+                        "People & Blogs": "22",
+                    }
+                    cat_id = CAT_MAP.get(pr_yt_category, "22")
+
+                    st.write(f"**Title:** {yt_vid_title}")
+                    st.write(f"**Privacy:** {pr_yt_privacy}  |  **Category:** {pr_yt_category}")
+                    st.write(f"**Tags:** {', '.join(yt_tags_list[:5])}")
+                    st.write("Uploading to YouTube…")
+
+                    vpath = video_result["path"]
+                    try:
+                        result = upload_to_youtube(
+                            video_path=vpath,
+                            title=yt_vid_title,
+                            description=yt_desc,
+                            tags=yt_tags_list,
+                            category_id=cat_id,
+                            privacy=pr_yt_privacy,
+                        )
+                        if "error" in result:
+                            st.error(f"Upload failed: {result['error']}")
+                            s6.update(
+                                label=f"❌  Step 6 — Upload failed: {result['error'][:60]}",
+                                state="error",
+                            )
+                            run_ok = False
+                        else:
+                            vid_id  = result.get("video_id", "")
+                            yt_url  = result.get("url", "")
+                            log_publish(vpath, "YouTube", yt_url, "success")
+                            update_video_youtube_id(vpath, vid_id, yt_url)
+                            st.session_state["last_youtube_url"] = yt_url
+
+                            st.success("✅ Uploaded to YouTube!")
+                            st.markdown(f"🔗 **[{yt_vid_title}]({yt_url})**")
+                            if vid_id:
+                                thumb = f"https://img.youtube.com/vi/{vid_id}/mqdefault.jpg"
+                                st.image(thumb, width=320)
+
+                            elapsed = time.time() - t0
+                            timings["youtube"] = elapsed
+                            s6.update(
+                                label=(
+                                    f"✅  Step 6 — YouTube  ({elapsed:.1f}s)  ·  "
+                                    f"{pr_yt_privacy}  ·  {yt_url}"
+                                ),
+                                state="complete", expanded=False,
+                            )
+                    except Exception as ex:
+                        st.error(f"YouTube upload error: {ex}")
+                        s6.update(label=f"❌  Step 6 — {ex}", state="error")
+                        run_ok = False
+        else:
+            video_result = st.session_state.get("video", video_result)
+
         # ══ FINAL SUMMARY ════════════════════════════════════════════════════
         if run_ok and last_steps:
             overall_bar.progress(1.0, text="Pipeline complete!")
@@ -1234,6 +1459,7 @@ elif page == "⚡ Pipeline Runner":
                 "voiceover": "🎙️ Voiceover",
                 "images":    "🖼️ Images",
                 "video":     "🎥 Video Assembly",
+                "youtube":   "🚀 YouTube Upload",
             }
             for key, label in step_map_labels.items():
                 if key in timings:

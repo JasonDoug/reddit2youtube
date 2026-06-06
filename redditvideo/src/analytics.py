@@ -61,6 +61,8 @@ def log_video(
     num_images: int,
     published: bool = False,
     publish_url: str = "",
+    youtube_video_id: str = "",
+    youtube_url: str = "",
 ):
     db = _load_db()
     db["stats"]["total_videos"] = db["stats"].get("total_videos", 0) + 1
@@ -76,6 +78,11 @@ def log_video(
         "num_images": num_images,
         "published": published,
         "publish_url": publish_url,
+        "youtube_video_id": youtube_video_id,
+        "youtube_url": youtube_url,
+        "views": 0,
+        "likes": 0,
+        "comments": 0,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
     _save_db(db)
@@ -94,17 +101,45 @@ def log_publish(video_path: str, platform: str, url: str, status: str):
     _save_db(db)
 
 
+def update_video_youtube_id(video_path: str, youtube_video_id: str, youtube_url: str):
+    """Patch the most recent video record for this path with a YouTube video ID and URL."""
+    db = _load_db()
+    for job in reversed(db["jobs"]):
+        if job.get("type") == "video" and job.get("video_path") == video_path:
+            job["youtube_video_id"] = youtube_video_id
+            job["youtube_url"] = youtube_url
+            job["published"] = True
+            job["publish_url"] = youtube_url
+            break
+    _save_db(db)
+
+
+def update_video_youtube_stats(youtube_video_id: str, views: int, likes: int, comments: int):
+    """Update view/like/comment counts fetched from YouTube for a published video."""
+    db = _load_db()
+    for job in db["jobs"]:
+        if job.get("type") == "video" and job.get("youtube_video_id") == youtube_video_id:
+            job["views"] = views
+            job["likes"] = likes
+            job["comments"] = comments
+            job["stats_updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+    _save_db(db)
+
+
 def get_stats() -> dict:
     db = _load_db()
     jobs = db.get("jobs", [])
 
-    searches = [j for j in jobs if j.get("type") == "search"]
-    scripts = [j for j in jobs if j.get("type") == "script"]
-    videos = [j for j in jobs if j.get("type") == "video"]
+    searches  = [j for j in jobs if j.get("type") == "search"]
+    scripts   = [j for j in jobs if j.get("type") == "script"]
+    videos    = [j for j in jobs if j.get("type") == "video"]
     publishes = [j for j in jobs if j.get("type") == "publish"]
 
     total_duration = sum(v.get("duration_sec", 0) for v in videos)
-    total_size = sum(v.get("file_size_mb", 0) for v in videos)
+    total_size     = sum(v.get("file_size_mb", 0) for v in videos)
+    total_views    = sum(v.get("views", 0) for v in videos)
+    total_likes    = sum(v.get("likes", 0) for v in videos)
 
     platform_counts: dict[str, int] = {}
     genre_counts: dict[str, int] = {}
@@ -128,6 +163,8 @@ def get_stats() -> dict:
         "total_publishes": len(publishes),
         "total_duration_sec": total_duration,
         "total_size_mb": round(total_size, 2),
+        "total_views": total_views,
+        "total_likes": total_likes,
         "platform_counts": platform_counts,
         "genre_counts": genre_counts,
         "subreddit_counts": subreddit_counts,

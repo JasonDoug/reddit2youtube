@@ -89,3 +89,40 @@ def upload_to_youtube(
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+def fetch_video_stats(video_id: str) -> dict:
+    """Fetch view / like / comment counts for a video via the YouTube Data API."""
+    try:
+        from googleapiclient.discovery import build
+        from google.auth.transport.requests import Request
+    except ImportError:
+        return {"error": "google-api-python-client not installed"}
+
+    try:
+        creds = None
+        if CREDENTIALS_PATH.exists():
+            import pickle
+            with open(CREDENTIALS_PATH, "rb") as f:
+                creds = pickle.load(f)
+
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+
+        if not creds or not creds.valid:
+            return {"error": "Not authenticated — upload a video first to authorise YouTube access"}
+
+        youtube = build("youtube", "v3", credentials=creds)
+        resp = youtube.videos().list(part="statistics", id=video_id).execute()
+        items = resp.get("items", [])
+        if not items:
+            return {"error": f"Video {video_id} not found or not yet public"}
+
+        stats = items[0]["statistics"]
+        return {
+            "views":    int(stats.get("viewCount",    0)),
+            "likes":    int(stats.get("likeCount",    0)),
+            "comments": int(stats.get("commentCount", 0)),
+        }
+    except Exception as e:
+        return {"error": str(e)}

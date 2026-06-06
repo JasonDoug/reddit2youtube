@@ -1,0 +1,57 @@
+{
+  "jobs": [
+    {
+      "type": "search",
+      "subreddits": [
+        "Askreddit"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T04:58:50.175116+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "What was the scariest \u201cWe need to leave\u2026 now\u201d gut feeling that you\u2019ve ever experienced?[Serious]",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 133,
+      "timestamp": "2026-06-06T04:58:57.454682+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T05:01:01.572091+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 143,
+      "timestamp": "2026-06-06T05:01:08.433397+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 71.3,
+      "file_size_mb": 8.54,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260606_050114.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_8f371e42.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "timestamp": "2026-06-06T05:01:48.876413+00:00"
+    }
+  ],
+  "stats": {
+    "total_videos": 1,
+    "total_scripts": 2,
+    "total_searches": 2
+  }
+}

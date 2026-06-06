@@ -587,11 +587,47 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T22:44:30.143327+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amioverreacting"
+      ],
+      "time_filter": "month",
+      "result_count": 2,
+      "timestamp": "2026-06-06T22:54:54.657394+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AIO? I blocked my friend for dating someone who is 18",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 144,
+      "timestamp": "2026-06-06T22:55:01.929975+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AIO? I blocked my friend for dating someone who is 18",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 67.4,
+      "file_size_mb": 16.21,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AIO__I_blocked_my_friend_for_dating_some_20260606_225510.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_4967f2a1.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T22:55:51.478986+00:00"
     }
   ],
   "stats": {
-    "total_videos": 16,
-    "total_scripts": 17,
-    "total_searches": 17
+    "total_videos": 17,
+    "total_scripts": 18,
+    "total_searches": 18
   }
 }

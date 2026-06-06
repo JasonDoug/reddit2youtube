@@ -16,3 +16,11 @@ then `concat`. The `trim` is what caps each slide so zoompan's expansion can't b
 `slide_frames = round(fps * per_image_duration)`, `slide_dur = slide_frames / fps`. Use this SAME `slide_dur` for subtitle `enable='between(t, i*slide_dur, (i+1)*slide_dur)'` so captions change on the exact same beat as the image. Do NOT add a separate `transition_duration` to the input `-t` unless an actual xfade is implemented — it just desyncs captions from images.
 
 **Edge case (pre-existing, accepted):** `per_image_duration = max(audio/n, 2.0)` can make total slideshow length differ from audio length; `-shortest` may then truncate the last slide/caption or trailing audio. Only matters for very short audio + many images.
+
+## Word-level karaoke captions (genre fonts + pop)
+- Captions render word-by-word via one `drawtext` per word using `textfile=` (path in the filtergraph, text isolated in a temp file — no escaping of the graph needed). In textfile mode the content is literal except `\` escapes and `%{...}` expansion, so only escape `\` and `%`; do NOT escape `:` (it would print a literal backslash).
+- gTTS has no word timestamps: estimate each word's start by weighting word length (`len(alnum)+2`) across the render duration.
+- **Time captions over `min(audio_duration, n*slide_dur)`**, not the slideshow length. `-shortest` cuts the output to the shorter stream; timing over the longer one drops the final words when `per_image_duration` is clamped to its 2.0s floor (many images / short audio).
+- A "pop" zoom = two drawtext per word (bigger for ~0.1s, then base). That doubles filter count; cap it (drop pop above ~280 words) so long scripts don't explode into thousands of filters and stall the encode.
+- Hundreds of drawtext filters exceed argv limits — write the whole filtergraph to a file and use `-filter_complex_script` instead of `-filter_complex`.
+- Genre→font/colour map lives in video_assembler `_GENRE_STYLES`; TTFs are bundled in `redditvideo/assets/fonts/` (Bangers/Anton/Pacifico/BebasNeue/Creepster) with DejaVu fallback.

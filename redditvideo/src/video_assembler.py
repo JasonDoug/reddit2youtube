@@ -10,7 +10,34 @@ from PIL import Image
 OUTPUT_DIR = Path(__file__).parent.parent / "output" / "videos"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+_FONTS_DIR = Path(__file__).parent.parent / "assets" / "fonts"
 _FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+_SERIF_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
+
+# Map each genre to a caption font + accent colour so the on-screen text
+# reflects the mood of the video (funny → playful, shocking → bold, etc.).
+_GENRE_STYLES = {
+    "entertaining / funny":          ("Bangers-Regular.ttf",    "yellow"),
+    "shocking / controversial":      ("Anton-Regular.ttf",      "red"),
+    "heartwarming / inspirational":  ("Pacifico-Regular.ttf",   "white"),
+    "news / current events":         ("BebasNeue-Regular.ttf",  "white"),
+    "opinion / commentary":          ("Anton-Regular.ttf",      "white"),
+    "story time / narrative":        (None,                     "white"),  # serif
+    "mystery / suspense":            ("Creepster-Regular.ttf",  "#7CFF7C"),
+    "informative / educational":     ("BebasNeue-Regular.ttf",  "white"),
+}
+
+
+def _resolve_genre_style(genre: str) -> tuple[str, str]:
+    """Return (font_file_path, fontcolor) for a genre, with safe fallbacks."""
+    font_file, color = _GENRE_STYLES.get((genre or "").strip().lower(),
+                                         (None, "white"))
+    if font_file is None:
+        font_path = _SERIF_PATH if os.path.exists(_SERIF_PATH) else _FONT_PATH
+    else:
+        candidate = _FONTS_DIR / font_file
+        font_path = str(candidate) if candidate.exists() else _FONT_PATH
+    return font_path, color
 
 
 def assemble_video(
@@ -22,6 +49,7 @@ def assemble_video(
     transition_duration: float = 0.5,
     fps: int = 30,
     script_text: str = "",
+    genre: str = "",
 ) -> dict:
     """
     Assemble a Ken Burns-style slideshow video with audio and burned-in
@@ -96,10 +124,17 @@ def assemble_video(
             f"{concat_inputs}concat=n={len(image_paths)}:v=1:a=0[vout]")
 
         # ── Burned-in subtitles ───────────────────────────────────────────────
-        # Use the same frame-aligned slide_dur as the images so each caption
-        # appears/disappears on exactly the same beat the image changes.
+        # Word-by-word "karaoke" captions: each word appears exactly when it is
+        # spoken (timed across the whole video) with a quick pop-in zoom.  Font
+        # and accent colour are chosen to match the genre.
+        # The output is cut by -shortest to the SHORTER of the audio and the
+        # slideshow, so time captions over that effective length — otherwise
+        # the final words could be scheduled past the end and never show.
+        total_duration = len(image_paths) * slide_dur
+        effective_duration = min(audio_duration, total_duration)
+        font_path, font_color = _resolve_genre_style(genre)
         subtitle_chain, sub_files = _build_subtitle_filters(
-            script_text, len(image_paths), slide_dur, tmp_dir, target_h
+            script_text, effective_duration, tmp_dir, target_h, font_path, font_color
         )
         if subtitle_chain:
             filter_parts.append(f"[vout]{subtitle_chain}[vfinal]")
@@ -109,12 +144,18 @@ def assemble_video(
 
         filter_complex = ";".join(filter_parts)
 
+        # The word-level graph can contain hundreds of drawtext filters, which
+        # can exceed command-line length limits — pass it via a script file.
+        filter_script = os.path.join(tmp_dir, "filter_complex.txt")
+        with open(filter_script, "w", encoding="utf-8") as f:
+            f.write(filter_complex)
+
         # ── FFmpeg command ────────────────────────────────────────────────────
         cmd = (
             ["ffmpeg", "-y"]
             + input_args
             + ["-i", audio_path]
-            + ["-filter_complex", filter_complex]
+            + ["-filter_complex_script", filter_script]
             + ["-map", map_v]
             + ["-map", f"{len(image_paths)}:a"]
             + ["-c:v", "libx264", "-preset", "fast", "-crf", "23"]
@@ -150,92 +191,109 @@ def assemble_video(
 
 # ── Subtitle helpers ──────────────────────────────────────────────────────────
 
-def _split_into_sentences(text: str) -> list[str]:
-    """Split script text into individual sentences."""
+def _split_into_words(text: str) -> list[str]:
+    """Split script text into individual words (punctuation kept attached)."""
     text = re.sub(r'\s+', ' ', text).strip()
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    return [s.strip() for s in sentences if s.strip()]
-
-
-def _wrap_subtitle(sentence: str, max_chars: int = 42) -> str:
-    """Wrap a sentence to at most two lines for on-screen readability."""
-    lines = textwrap.wrap(sentence, width=max_chars)
-    return "\n".join(lines[:2])
+    return [w for w in text.split(" ") if w]
 
 
 def _escape_drawtext(text: str) -> str:
-    """Escape characters that FFmpeg drawtext treats as special."""
+    """
+    Escape word text for drawtext *textfile* mode.  In textfile mode the
+    content is read literally except for backslash escapes and `%{...}`
+    expansion, so we only neutralise those (colons/quotes are literal here).
+    """
     text = text.replace("\\", "\\\\")
-    text = text.replace("'",  "\u2019")   # replace straight apostrophe with curly
-    text = text.replace(":",  "\\:")
-    text = text.replace("%",  "\\%")
+    text = text.replace("%",  "\\%")      # avoid accidental %{...} expansion
+    text = text.replace("'",  "\u2019")   # nicer curly apostrophe on screen
     return text
 
 
 def _build_subtitle_filters(
     script_text: str,
-    n_images: int,
-    per_image_duration: float,
+    total_duration: float,
     tmp_dir: str,
     frame_height: int,
+    font_path: str = _FONT_PATH,
+    font_color: str = "white",
 ) -> tuple[str, list[str]]:
     """
-    Build a chain of FFmpeg drawtext filters (one per slide) that burn
-    subtitle text onto the video.  Returns (filter_chain_str, [tmp_files]).
-    Returns ("", []) when no script text is provided.
+    Build a chain of FFmpeg drawtext filters that burn word-by-word "karaoke"
+    captions onto the video.  Each word appears exactly when it is spoken
+    (timing estimated from word length across the whole video) and pops in
+    with a quick zoom for that big, punchy short-form look.
+
+    Returns (filter_chain_str, [tmp_files]); ("", []) when there is no script.
     """
-    if not script_text or n_images == 0:
+    if not script_text or total_duration <= 0:
         return "", []
 
-    sentences = _split_into_sentences(script_text)
-    if not sentences:
+    words = _split_into_words(script_text)
+    if not words:
         return "", []
 
-    # Distribute sentences across slides
-    chunks: list[str] = []
-    total = len(sentences)
-    for i in range(n_images):
-        start = int(i * total / n_images)
-        end   = int((i + 1) * total / n_images)
-        chunk_sents = sentences[start:end]
-        chunks.append(" ".join(chunk_sents) if chunk_sents else "")
+    # ── Estimate each word's spoken time ──────────────────────────────────────
+    # gTTS gives no word timestamps, so weight each word by its length (longer
+    # words take longer to say) and spread the weights across the whole video.
+    weights = [len(re.sub(r'[^\w]', '', w)) + 2 for w in words]
+    total_weight = sum(weights) or 1
+    starts: list[float] = []
+    acc = 0.0
+    for wgt in weights:
+        starts.append(acc / total_weight * total_duration)
+        acc += wgt
+    starts.append(total_duration)  # sentinel end
 
-    font_size = max(36, frame_height // 22)
-    y_pos     = frame_height - font_size * 3 - 30   # near bottom
+    # Big, punchy caption sizing — much larger than the old per-slide style.
+    base_size = max(64, frame_height // 11)
+    pop_size  = int(base_size * 1.32)
+    pop_dur   = 0.10                      # how long the zoom-in lasts
+    y_center  = f"(h-text_h)/2+{int(frame_height * 0.16)}"   # slightly low-center
+
+    font_arg = f":fontfile='{font_path}'" if os.path.exists(font_path) else ""
+
+    # Each word normally emits two drawtext filters (pop + settle).  For very
+    # long scripts that doubles into thousands of filters and slows the encode,
+    # so drop the pop phase past this threshold to keep one filter per word.
+    use_pop = len(words) <= 280
 
     filters: list[str] = []
     tmp_files: list[str] = []
 
-    for i, chunk in enumerate(chunks):
-        if not chunk.strip():
-            continue
-        wrapped = _wrap_subtitle(chunk, max_chars=44)
-        escaped = _escape_drawtext(wrapped)
-
-        t_start = i * per_image_duration
-        t_end   = (i + 1) * per_image_duration
-
-        # Write text to a temp file to avoid shell-escaping headaches
-        txt_file = os.path.join(tmp_dir, f"sub_{i:04d}.txt")
+    for i, word in enumerate(words):
+        escaped = _escape_drawtext(word)
+        txt_file = os.path.join(tmp_dir, f"w_{i:04d}.txt")
         with open(txt_file, "w", encoding="utf-8") as f:
             f.write(escaped)
         tmp_files.append(txt_file)
 
-        # Font path — fall back gracefully if DejaVu isn't present
-        font_arg = f":fontfile='{_FONT_PATH}'" if os.path.exists(_FONT_PATH) else ""
-        line_count = wrapped.count("\n") + 1
-        effective_y = y_pos - (line_count - 1) * (font_size + 4)
+        w_start = starts[i]
+        w_end   = starts[i + 1]
+        pop_end = min(w_start + pop_dur, w_end)
 
-        dt = (
-            f"drawtext=textfile='{txt_file}'{font_arg}"
-            f":fontsize={font_size}"
-            f":fontcolor=white"
-            f":box=1:boxcolor=black@0.55:boxborderw=14"
-            f":x=(w-text_w)/2:y={effective_y}"
-            f":line_spacing=6"
-            f":enable='between(t,{t_start:.3f},{t_end:.3f})'"
+        common = (
+            f"{font_arg}"
+            f":fontcolor={font_color}"
+            f":borderw=12:bordercolor=black"
+            f":shadowx=4:shadowy=4:shadowcolor=black@0.6"
+            f":x=(w-text_w)/2"
         )
-        filters.append(dt)
+
+        # Pop-in (larger) for the first instant, then settle to the base size.
+        if use_pop and pop_end > w_start:
+            filters.append(
+                f"drawtext=textfile='{txt_file}'{common}"
+                f":fontsize={pop_size}:y={y_center}"
+                f":enable='between(t,{w_start:.3f},{pop_end:.3f})'"
+            )
+            settle_start = pop_end
+        else:
+            settle_start = w_start
+        filters.append(
+            f"drawtext=textfile='{txt_file}'{common}"
+            f":fontsize={base_size}:y={y_center}"
+            f":enable='between(t,{settle_start:.3f},{w_end:.3f})'"
+        )
 
     return ",".join(filters), tmp_files
 

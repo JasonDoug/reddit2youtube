@@ -472,6 +472,7 @@ elif page == "🎥 Assemble Video":
                     transition_duration=transition,
                     fps=fps,
                     script_text=st.session_state.get("script", {}).get("full_script", ""),
+                    genre=s.get("genre", ""),
                 )
                 if "error" in result:
                     st.error(f"Assembly failed: {result['error']}")
@@ -1316,6 +1317,7 @@ elif page == "⚡ Pipeline Runner":
                         transition_duration=pr_transition,
                         fps=pr_fps,
                         script_text=script_result.get("full_script", ""),
+                        genre=pr_genre,
                     )
                     prog_msg.empty()
 

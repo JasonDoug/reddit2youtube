@@ -59,3 +59,7 @@ externalPort = 3000
 [nix]
 channel = "stable-25_05"
 packages = ["ffmpeg-full", "freetype", "glibcLocales", "imagemagickBig", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[userenv]
+
+[userenv.shared]

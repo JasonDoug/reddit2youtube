@@ -793,9 +793,36 @@ elif page == "⚡ Pipeline Runner":
 
     st.markdown("---")
 
+    # ── Enforce dependency chain (disabled widget still returns True in session) ──
+    if not run_search:
+        run_script = run_script and bool(st.session_state.get("selected_post"))
+    if not run_script:
+        run_voice  = False
+        run_images = False
+    if not run_voice or not run_images:
+        run_video  = False
+
+    # ── Pre-run blockers ───────────────────────────────────────────────────────
+    blockers = []
+    if run_search and not pr_subreddits.strip():
+        blockers.append("Enter at least one subreddit name in the Search Reddit config above.")
+    if run_script and not run_search and not st.session_state.get("selected_post"):
+        blockers.append("Step 2 (Script) needs a post — enable Step 1 (Search Reddit) or run a full search first.")
+    if run_voice and not run_script and not st.session_state.get("script"):
+        blockers.append("Step 3 (Voiceover) needs a script — enable Step 2 (Script) or generate a script first.")
+    if run_images and not run_script and not st.session_state.get("script"):
+        blockers.append("Step 4 (Images) needs a script — enable Step 2 (Script) or generate a script first.")
+    if run_video and (not run_voice or not run_images) and (not st.session_state.get("voiceover") or not st.session_state.get("images")):
+        blockers.append("Step 5 (Video) needs both voiceover and images — enable Steps 3 & 4 or run them first.")
+
+    for b in blockers:
+        st.error(b)
+
     btn_label = f"▶  Run pipeline  ({run_label})"
     if not last_steps:
         st.warning("Enable at least one step above.")
+    elif blockers:
+        pass  # errors already shown above
     elif st.button(btn_label, type="primary", use_container_width=True):
 
         run_ok    = True

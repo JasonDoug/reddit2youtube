@@ -47,11 +47,47 @@
       "published": false,
       "publish_url": "",
       "timestamp": "2026-06-06T05:01:48.876413+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-06T17:11:30.477724+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 156,
+      "timestamp": "2026-06-06T17:11:38.640299+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 67.8,
+      "file_size_mb": 8.15,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260606_171150.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_a5542ec1.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T17:12:25.562810+00:00"
     }
   ],
   "stats": {
-    "total_videos": 1,
-    "total_scripts": 2,
-    "total_searches": 2
+    "total_videos": 2,
+    "total_scripts": 3,
+    "total_searches": 3
   }
 }

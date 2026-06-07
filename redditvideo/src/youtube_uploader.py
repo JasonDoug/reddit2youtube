@@ -37,12 +37,21 @@ _STATE_TTL = 600  # seconds an issued OAuth state stays valid
 
 # ── Configuration helpers ───────────────────────────────────────────────────
 def redirect_uri() -> str:
-    """The public app URL Google must redirect back to (must be registered)."""
+    """The public app URL Google must redirect back to (must be registered).
+
+    In this workspace the domain root ('/') is served by another service, while
+    the Streamlit app is exposed on port 5000. So the redirect must target
+    :5000. An explicit YOUTUBE_OAUTH_REDIRECT_URI env var overrides everything
+    (useful for a published deployment where the app is served at '/').
+    """
+    override = os.environ.get("YOUTUBE_OAUTH_REDIRECT_URI", "").strip()
+    if override:
+        return override
     domains = os.environ.get("REPLIT_DOMAINS", "")
     domain = domains.split(",")[0].strip() if domains else ""
     if not domain:
         domain = os.environ.get("REPLIT_DEV_DOMAIN", "").strip()
-    return f"https://{domain}/" if domain else ""
+    return f"https://{domain}:5000/" if domain else ""
 
 
 def _client_config() -> dict | None:

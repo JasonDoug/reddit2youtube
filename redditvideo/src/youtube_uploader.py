@@ -110,22 +110,25 @@ def _write_states(states: list[dict]) -> None:
         json.dump(states, f)
 
 
-def _store_state(state: str) -> None:
+def _store_state(state: str, code_verifier: str | None = None) -> None:
     now = time.time()
     states = [s for s in _read_states() if now - s.get("ts", 0) < _STATE_TTL]
-    states.append({"state": state, "ts": now})
+    states.append({"state": state, "ts": now, "cv": code_verifier})
     _write_states(states)
 
 
-def _consume_state(state: str) -> bool:
-    """Return True if `state` was issued and unexpired; remove it either way."""
+def _consume_state(state: str) -> dict | None:
+    """Return the stored state dict if `state` was issued and unexpired; remove it either way."""
     if not state:
-        return False
+        return None
     now = time.time()
     states = [s for s in _read_states() if now - s.get("ts", 0) < _STATE_TTL]
-    matched = any(s.get("state") == state for s in states)
-    _write_states([s for s in states if s.get("state") != state])
-    return matched
+    for s in states:
+        if s.get("state") == state:
+            _write_states([st for st in states if st.get("state") != state])
+            return s
+    _write_states(states)
+    return None
 
 
 # ── Credential storage (JSON, not pickle) ───────────────────────────────────
@@ -197,7 +200,10 @@ def get_auth_url() -> dict:
             include_granted_scopes="true",
             prompt="consent",
         )
-        _store_state(state)
+        # PKCE code_verifier is generated inside the flow; we must persist it
+        # so the callback (new session) can exchange the code.
+        code_verifier = getattr(flow, "code_verifier", None)
+        _store_state(state, code_verifier)
     except Exception as e:
         return {"error": f"Could not build authorization URL: {e}"}
     return {"auth_url": auth_url, "redirect_uri": redirect}
@@ -210,7 +216,8 @@ def finish_auth(code: str, state: str = "") -> dict:
     except ImportError:
         return {"error": "google-auth-oauthlib not installed"}
 
-    if not _consume_state(state):
+    stored = _consume_state(state)
+    if not stored:
         return {"error": "Security check failed (invalid or expired request). Please click Connect again."}
 
     cfg = _client_config()
@@ -219,6 +226,9 @@ def finish_auth(code: str, state: str = "") -> dict:
     redirect = redirect_uri()
     try:
         flow = Flow.from_client_config(cfg, scopes=SCOPES, redirect_uri=redirect)
+        code_verifier = stored.get("cv")
+        if code_verifier:
+            flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
     except Exception as e:
         return {"error": f"Authorization failed: {e}"}

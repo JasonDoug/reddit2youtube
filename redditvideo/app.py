@@ -73,10 +73,11 @@ elif "code" in st.query_params:
     st.rerun()
 
 
-def youtube_connection_ui() -> bool:
+def youtube_connection_ui(key_prefix: str = "yt") -> bool:
     """Render YouTube config status + connect/disconnect controls.
 
     Returns True when the app is connected and ready to upload.
+    `key_prefix` keeps widget keys unique when shown on multiple spots.
     """
     # Show any pending OAuth result message (set by the callback handler).
     msg = st.session_state.pop("yt_oauth_msg", None)
@@ -117,7 +118,7 @@ def youtube_connection_ui() -> bool:
     if is_authenticated():
         c1, c2 = st.columns([3, 1])
         c1.success("✅ Connected to YouTube — ready to upload.")
-        if c2.button("Disconnect", key="yt_disconnect"):
+        if c2.button("Disconnect", key=f"{key_prefix}_disconnect"):
             disconnect()
             st.rerun()
         return True
@@ -526,6 +527,10 @@ elif page == "🖼️ Images":
 elif page == "🎥 Assemble Video":
     st.header("🎥 Assemble & Export Video")
 
+    # YouTube connection lives here so it's reachable even before a video exists.
+    with st.expander("🔗 YouTube account", expanded=not is_authenticated()):
+        youtube_connection_ui(key_prefix="assemble")
+
     missing = []
     if not st.session_state.script:
         missing.append("Script")
@@ -534,7 +539,7 @@ elif page == "🎥 Assemble Video":
     if not st.session_state.images:
         missing.append("Images")
     if missing:
-        st.info(f"👈 Complete these steps first: {', '.join(missing)}")
+        st.info(f"👈 Complete these steps first to build a video: {', '.join(missing)}")
         st.stop()
 
     s = st.session_state.script
@@ -619,7 +624,9 @@ elif page == "🎥 Assemble Video":
         st.markdown("---")
         st.subheader("🚀 Publish to YouTube")
 
-        if youtube_connection_ui():
+        if not is_authenticated():
+            st.info("Connect your YouTube account in the **🔗 YouTube account** section at the top of this page to enable upload.")
+        else:
             yt_title = st.text_input("YouTube title", post.get("title", "")[:100])
             yt_desc = st.text_area("Description", f"Based on: {post.get('permalink', '')}\n\nGenerated with Reddit Video Pipeline.")
             yt_tags = st.text_input("Tags (comma-separated)", f"{post.get('subreddit', '')}, reddit, viral")
@@ -990,7 +997,7 @@ elif page == "⚡ Pipeline Runner":
     if run_youtube:
         st.markdown("---")
         st.subheader("6 · YouTube Upload")
-        youtube_connection_ui()
+        youtube_connection_ui(key_prefix="pipeline")
         col_yt1, col_yt2 = st.columns(2)
         with col_yt1:
             pr_yt_privacy = st.selectbox("Privacy", ["private", "unlisted", "public"], key="pr_yt_priv")

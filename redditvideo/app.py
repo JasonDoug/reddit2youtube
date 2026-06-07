@@ -19,7 +19,11 @@ from src.analytics import (
     log_search, log_script, log_video, log_publish, get_stats,
     update_video_youtube_id, update_video_youtube_stats,
 )
-from src.youtube_uploader import upload_to_youtube, is_youtube_configured, fetch_video_stats
+from src.youtube_uploader import (
+    upload_to_youtube, fetch_video_stats,
+    is_authenticated, get_auth_url, finish_auth, disconnect,
+    config_problem, redirect_uri,
+)
 
 st.set_page_config(
     page_title="Reddit Video Pipeline",
@@ -42,6 +46,93 @@ for key, default in {
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+
+# ── YouTube OAuth callback handler ──────────────────────────────────────────
+# When Google redirects back here it appends ?code=...&state=... (or ?error=...)
+# to the app URL — and this is a brand-new Streamlit session. Catch it on any
+# page, exchange the code for credentials, then clear the query params so a
+# refresh doesn't re-trigger anything. (No session_state guard is needed: once
+# the params are cleared the handler simply doesn't match on the next run.)
+if "error" in st.query_params:
+    st.session_state["yt_oauth_msg"] = (
+        "error", f"YouTube authorization was cancelled or failed: {st.query_params['error']}"
+    )
+    st.query_params.clear()
+    st.rerun()
+elif "code" in st.query_params:
+    _auth = finish_auth(st.query_params["code"], st.query_params.get("state", ""))
+    if _auth.get("success"):
+        if _auth.get("warning"):
+            st.session_state["yt_oauth_msg"] = ("warning", f"⚠️ {_auth['warning']}")
+        else:
+            st.session_state["yt_oauth_msg"] = ("success", "✅ YouTube account connected!")
+    else:
+        st.session_state["yt_oauth_msg"] = ("error", f"YouTube connection failed: {_auth.get('error', 'unknown error')}")
+    st.query_params.clear()
+    st.rerun()
+
+
+def youtube_connection_ui() -> bool:
+    """Render YouTube config status + connect/disconnect controls.
+
+    Returns True when the app is connected and ready to upload.
+    """
+    # Show any pending OAuth result message (set by the callback handler).
+    msg = st.session_state.pop("yt_oauth_msg", None)
+    if msg:
+        {"success": st.success, "error": st.error, "warning": st.warning}.get(msg[0], st.info)(msg[1])
+
+    problem = config_problem()
+    if problem is not None:
+        if problem == "missing":
+            st.warning(
+                "**YouTube upload not configured.** To enable it:\n\n"
+                "1. Go to [Google Cloud Console](https://console.cloud.google.com/) → create a project\n"
+                "2. Enable **YouTube Data API v3**\n"
+                "3. Create **OAuth2 credentials → Web application**\n"
+                f"4. Add this **Authorized redirect URI**: `{redirect_uri()}`\n"
+                "5. Download the JSON and paste its **full contents** into the "
+                "`YOUTUBE_CLIENT_SECRETS_JSON` secret."
+            )
+        elif problem == "not_json":
+            st.error(
+                "Your `YOUTUBE_CLIENT_SECRETS_JSON` secret isn't valid JSON. It looks like only the "
+                "client-secret string was pasted. Paste the **entire downloaded JSON file** "
+                "(it starts with `{\"web\":{...}}`)."
+            )
+        elif problem == "wrong_shape":
+            st.error(
+                "Your `YOUTUBE_CLIENT_SECRETS_JSON` is JSON but not a Google client-secrets file. "
+                "Paste the full file downloaded from Google Cloud Console (it has a top-level `web` key)."
+            )
+        elif problem == "not_web":
+            st.error(
+                "Your OAuth credentials are a **Desktop app**, which can't redirect back to this app. "
+                "Create new **Web application** credentials in Google Cloud Console, add the redirect "
+                f"URI `{redirect_uri()}`, and paste that JSON instead."
+            )
+        return False
+
+    if is_authenticated():
+        c1, c2 = st.columns([3, 1])
+        c1.success("✅ Connected to YouTube — ready to upload.")
+        if c2.button("Disconnect", key="yt_disconnect"):
+            disconnect()
+            st.rerun()
+        return True
+
+    st.info("Connect your YouTube account to upload videos.")
+    res = get_auth_url()
+    if "error" in res:
+        st.error(res["error"])
+        return False
+    st.link_button("🔗 Connect YouTube account", res["auth_url"], type="primary")
+    st.caption(
+        f"You'll sign in on Google and be redirected back here. Make sure `{res['redirect_uri']}` "
+        "is listed as an Authorized redirect URI in your Google Cloud OAuth client."
+    )
+    return False
 
 
 # ── Sidebar navigation ──────────────────────────────────────────────────────
@@ -528,15 +619,7 @@ elif page == "🎥 Assemble Video":
         st.markdown("---")
         st.subheader("🚀 Publish to YouTube")
 
-        if not is_youtube_configured():
-            st.warning(
-                "YouTube upload not configured. To enable it:\n\n"
-                "1. Go to [Google Cloud Console](https://console.cloud.google.com/)\n"
-                "2. Create a project → Enable YouTube Data API v3\n"
-                "3. Create OAuth2 credentials (Desktop app)\n"
-                "4. Download the JSON and paste its content as the `YOUTUBE_CLIENT_SECRETS_JSON` secret."
-            )
-        else:
+        if youtube_connection_ui():
             yt_title = st.text_input("YouTube title", post.get("title", "")[:100])
             yt_desc = st.text_area("Description", f"Based on: {post.get('permalink', '')}\n\nGenerated with Reddit Video Pipeline.")
             yt_tags = st.text_input("Tags (comma-separated)", f"{post.get('subreddit', '')}, reddit, viral")
@@ -907,11 +990,7 @@ elif page == "⚡ Pipeline Runner":
     if run_youtube:
         st.markdown("---")
         st.subheader("6 · YouTube Upload")
-        if not is_youtube_configured():
-            st.warning(
-                "YouTube not configured — add a `YOUTUBE_CLIENT_SECRETS_JSON` secret "
-                "(OAuth2 JSON from Google Cloud Console → YouTube Data API v3) to enable upload."
-            )
+        youtube_connection_ui()
         col_yt1, col_yt2 = st.columns(2)
         with col_yt1:
             pr_yt_privacy = st.selectbox("Privacy", ["private", "unlisted", "public"], key="pr_yt_priv")
@@ -1402,9 +1481,12 @@ elif page == "⚡ Pipeline Runner":
             _bar(step_n, "Uploading to YouTube…")
 
             with st.status("🚀  Step 6 — YouTube Upload", expanded=True) as s6:
-                if not is_youtube_configured():
-                    st.error("YouTube not configured. Add YOUTUBE_CLIENT_SECRETS_JSON secret.")
-                    s6.update(label="❌  Step 6 — YouTube not configured", state="error")
+                if not is_authenticated():
+                    st.error(
+                        "YouTube not connected. Go to the **Assemble Video** page (or the "
+                        "Step 6 config above) and click **Connect YouTube account** first."
+                    )
+                    s6.update(label="❌  Step 6 — YouTube not connected", state="error")
                     run_ok = False
                 else:
                     yt_vid_title = post.get("title", "Reddit Video")[:100]

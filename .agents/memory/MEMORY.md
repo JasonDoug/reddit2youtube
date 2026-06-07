@@ -1,1 +1,2 @@
 - [FFmpeg zoompan slideshow pitfall](ffmpeg-zoompan-slideshow.md) — looped-still zoompan emits d frames PER input frame and collapses the video to image #1; cut each slide with trim and drive images+subtitles from one frame-aligned slide_dur.
+- [YouTube OAuth on headless Replit](youtube-oauth-replit.md) — desktop run_local_server can't work on Replit; use web-redirect Flow, persist anti-CSRF state to a file (redirect = new Streamlit session), store creds as JSON.

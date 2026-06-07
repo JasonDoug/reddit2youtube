@@ -37,7 +37,10 @@ A full content creation pipeline that turns top Reddit posts into viral short-fo
 - FFmpeg's zoompan filter for Ken Burns effect — no Python video manipulation overhead
 - gTTS used as free TTS; OpenAI TTS can be swapped in via voiceover.py
 - OpenAI accessed via Replit AI Integrations proxy (no API key needed from user)
-- YouTube upload is optional and requires YOUTUBE_CLIENT_SECRETS_JSON secret
+- YouTube upload is optional and uses a web-based OAuth2 flow (works on headless Replit; no server-side browser). The old `run_local_server` desktop flow does NOT work on Replit.
+  - Requires YOUTUBE_CLIENT_SECRETS_JSON = the FULL JSON file (top-level `web` key) from a Google Cloud **Web application** OAuth client — not the bare `GOCSPX-...` client secret string.
+  - The OAuth client must register the app's public URL (`https://<REPLIT_DOMAIN>/`) as an Authorized redirect URI.
+  - User clicks "Connect YouTube account" in-app → authorizes in their own browser → Google redirects back with `?code=` → app exchanges it and stores `data/youtube_credentials.pkl`.
 
 ## Product
 

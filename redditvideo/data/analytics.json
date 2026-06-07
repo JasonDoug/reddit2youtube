@@ -1155,11 +1155,116 @@
       "genre": "Informative / Educational",
       "word_count": 142,
       "timestamp": "2026-06-07T04:55:56.219409+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T19:59:45.896281+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to switch hospital rooms after another patient complained about me?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 148,
+      "timestamp": "2026-06-07T19:59:54.708401+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T20:00:34.561850+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for telling a little girl that I'm not her dad?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 0,
+      "timestamp": "2026-06-07T20:00:40.402633+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T20:01:13.687732+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 145,
+      "timestamp": "2026-06-07T20:01:19.079436+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to switch hospital rooms after another patient complained about me?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 67.4,
+      "file_size_mb": 13.49,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_switch_hospital_roo_20260607_200154.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_fe711f51.mp3",
+      "num_images": 6,
+      "published": true,
+      "publish_url": "https://www.youtube.com/watch?v=y9PzA3eWQ7M",
+      "youtube_video_id": "y9PzA3eWQ7M",
+      "youtube_url": "https://www.youtube.com/watch?v=y9PzA3eWQ7M",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-07T20:02:37.696014+00:00"
+    },
+    {
+      "type": "publish",
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_switch_hospital_roo_20260607_200154.mp4",
+      "platform": "YouTube",
+      "url": "https://www.youtube.com/watch?v=y9PzA3eWQ7M",
+      "status": "success",
+      "timestamp": "2026-06-07T20:02:39.543472+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 66.0,
+      "file_size_mb": 15.24,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260607_200313.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_3d55d5a2.mp3",
+      "num_images": 6,
+      "published": true,
+      "publish_url": "https://www.youtube.com/watch?v=2oTdxfPt5YY",
+      "youtube_video_id": "2oTdxfPt5YY",
+      "youtube_url": "https://www.youtube.com/watch?v=2oTdxfPt5YY",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-07T20:03:52.851230+00:00"
+    },
+    {
+      "type": "publish",
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260607_200313.mp4",
+      "platform": "YouTube",
+      "url": "https://www.youtube.com/watch?v=2oTdxfPt5YY",
+      "status": "success",
+      "timestamp": "2026-06-07T20:03:54.468846+00:00"
     }
   ],
   "stats": {
-    "total_videos": 28,
-    "total_scripts": 37,
-    "total_searches": 37
+    "total_videos": 30,
+    "total_scripts": 40,
+    "total_searches": 40
   }
 }

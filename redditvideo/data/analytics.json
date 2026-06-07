@@ -1051,11 +1051,115 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-07T04:42:24.637217+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:50:16.746111+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for not giving an expensive hoodie to a student's mom without proper proof?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 144,
+      "timestamp": "2026-06-07T04:50:22.225397+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:51:09.495708+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for not giving an expensive hoodie to a student's mom without proper proof?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 137,
+      "timestamp": "2026-06-07T04:51:15.441906+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:51:48.683716+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for telling a little girl that I'm not her dad?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 148,
+      "timestamp": "2026-06-07T04:51:54.009615+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for telling a little girl that I'm not her dad?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 66.8,
+      "file_size_mb": 13.85,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_telling_a_little_girl_that_I_m__20260607_045341.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_62da5d39.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-07T04:54:25.774951+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:55:18.614570+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 143,
+      "timestamp": "2026-06-07T04:55:23.369572+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:55:48.735665+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 142,
+      "timestamp": "2026-06-07T04:55:56.219409+00:00"
     }
   ],
   "stats": {
-    "total_videos": 27,
-    "total_scripts": 32,
-    "total_searches": 32
+    "total_videos": 28,
+    "total_scripts": 37,
+    "total_searches": 37
   }
 }

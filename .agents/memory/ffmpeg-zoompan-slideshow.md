@@ -31,3 +31,8 @@ then `concat`. The `trim` is what caps each slide so zoompan's expansion can't b
 - gpt-image-1 only accepts sizes 1024x1024 / 1536x1024 / 1024x1536 — map aspect to nearest then crop with the existing resize helper.
 - Generation is slow (~15-40s/image); run slides concurrently with ThreadPoolExecutor since calls are independent. Cache by md5(prompt|size).
 - Concurrency hazard: duplicate prompts in one batch map to the SAME cache file → threads race on a half-written file. Guard with a per-cache-key `threading.Lock` + atomic publish (write `.tmp` then `os.replace`). Same applies to the resized-output path.
+
+## Word-caption sync without timestamps (gTTS)
+- gTTS exposes no word timestamps, so caption sync is a heuristic. Pure letter-count weighting drifts on punctuation-heavy scripts because the TTS voice PAUSES at punctuation.
+- Fix that generalizes across scripts: weight each word `len(alnum)+2` PLUS a pause weight added to the word it follows — sentence-enders (`. ! ? … : ;`) ≈ +7, comma/dash (`, — -`) ≈ +4. This both delays following words and lets the punctuated word linger on screen through the pause.
+- Distribute starts over `effective_duration` (≈ audio length); the per-image-duration 2.0s floor only ever raises slide_dur, so total_video ≥ audio and effective≈audio in practice.

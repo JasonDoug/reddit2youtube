@@ -659,11 +659,206 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T23:13:54.543381+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "all",
+      "result_count": 2,
+      "timestamp": "2026-06-06T23:28:24.417103+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for telling my wife the lock on my daughter's door does not get removed til my brother inlaw and his daughters are out of our house?",
+      "platform": "YouTube Shorts",
+      "genre": "Heartwarming / Inspirational",
+      "word_count": 131,
+      "timestamp": "2026-06-06T23:28:31.210380+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "all",
+      "result_count": 2,
+      "timestamp": "2026-06-06T23:31:19.232327+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for telling my wife the lock on my daughter's door does not get removed til my brother inlaw and his daughters are out of our house?",
+      "platform": "YouTube Shorts",
+      "genre": "Heartwarming / Inspirational",
+      "word_count": 133,
+      "timestamp": "2026-06-06T23:31:26.557929+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for telling my wife the lock on my daughter's door does not get removed til my brother inlaw and his daughters are out of our house?",
+      "platform": "YouTube Shorts",
+      "genre": "Heartwarming / Inspirational",
+      "duration_sec": 63.2,
+      "file_size_mb": 13.55,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_telling_my_wife_the_lock_on_my__20260606_233318.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_6e44d646.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T23:33:59.665464+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amioverreacting"
+      ],
+      "time_filter": "all",
+      "result_count": 17,
+      "timestamp": "2026-06-06T23:35:55.761203+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AIO - my friend gave my abusive ex my new phone number",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 141,
+      "timestamp": "2026-06-06T23:36:01.266992+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Peterexplainsthejoke"
+      ],
+      "time_filter": "year",
+      "result_count": 5,
+      "timestamp": "2026-06-06T23:38:20.473791+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "PETA WHY ARE THEY SO UPSET WITH HULK?!!!",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 138,
+      "timestamp": "2026-06-06T23:38:26.494693+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Askreddit"
+      ],
+      "time_filter": "year",
+      "result_count": 5,
+      "timestamp": "2026-06-06T23:40:52.576089+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "Why do you think President Trump ordered all US Flags at half staff for the death of a Political Commentator, but not for the death of actual Legislators?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 141,
+      "timestamp": "2026-06-06T23:40:58.443466+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "Why do you think President Trump ordered all US Flags at half staff for the death of a Political Commentator, but not for the death of actual Legislators?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 70.8,
+      "file_size_mb": 16.68,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/Why_do_you_think_President_Trump_ordered_20260606_234246.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_f86fa2ea.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T23:43:31.130385+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "hot",
+      "result_count": 5,
+      "timestamp": "2026-06-06T23:44:40.316022+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for stopping video when homeless man clearly didn't want to be on camera?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 152,
+      "timestamp": "2026-06-06T23:44:44.998076+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for stopping video when homeless man clearly didn't want to be on camera?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 67.8,
+      "file_size_mb": 15.03,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_stopping_video_when_homeless_ma_20260606_234636.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_4fb925d0.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T23:47:20.588420+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 1,
+      "timestamp": "2026-06-06T23:52:36.555939+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 155,
+      "timestamp": "2026-06-06T23:52:43.016444+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for refusing to sign off on 4 volunteer hours for a teen who was only there for less than an hour?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 75.7,
+      "file_size_mb": 17.74,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_refusing_to_sign_off_on_4_volun_20260606_235459.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_6f2a9639.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-06T23:55:47.185834+00:00"
     }
   ],
   "stats": {
-    "total_videos": 18,
-    "total_scripts": 19,
-    "total_searches": 19
+    "total_videos": 22,
+    "total_scripts": 26,
+    "total_searches": 26
   }
 }

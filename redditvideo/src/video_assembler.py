@@ -233,9 +233,23 @@ def _build_subtitle_filters(
         return "", []
 
     # ── Estimate each word's spoken time ──────────────────────────────────────
-    # gTTS gives no word timestamps, so weight each word by its length (longer
-    # words take longer to say) and spread the weights across the whole video.
-    weights = [len(re.sub(r'[^\w]', '', w)) + 2 for w in words]
+    # gTTS gives no word timestamps, so model the speech timeline as:
+    #   • a per-word base cost (longer words take longer to say), plus
+    #   • extra "pause" cost after punctuation — the TTS voice clearly pauses at
+    #     commas and (longer) at sentence ends, so without this the captions
+    #     drift ahead of the audio on scripts with lots of punctuation.
+    # The pause weight is added to the word it follows, so that word also
+    # lingers on screen through the spoken pause.
+    weights = []
+    for w in words:
+        core = len(re.sub(r'[^\w]', '', w))
+        wgt = core + 2                       # base: speaking the word itself
+        stripped = w.rstrip('"\u2019\')')    # ignore trailing quotes/brackets
+        if stripped.endswith(('.', '!', '?', '\u2026', ':', ';')):
+            wgt += 7                         # full sentence / clause pause
+        elif stripped.endswith((',', '\u2014', '-')):
+            wgt += 4                         # shorter comma / dash pause
+        weights.append(wgt)
     total_weight = sum(weights) or 1
     starts: list[float] = []
     acc = 0.0

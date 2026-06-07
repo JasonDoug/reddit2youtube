@@ -854,11 +854,47 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-06T23:55:47.185834+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Worldnews"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T03:28:15.542282+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "Iran\u2019s president offers resignation, citing total takeover by IRGC commanders",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "word_count": 135,
+      "timestamp": "2026-06-07T03:28:24.881420+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "Iran\u2019s president offers resignation, citing total takeover by IRGC commanders",
+      "platform": "YouTube Shorts",
+      "genre": "Informative / Educational",
+      "duration_sec": 72.6,
+      "file_size_mb": 13.3,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/Iran_s_president_offers_resignation__cit_20260607_033018.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_08e60b4d.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-07T03:31:03.894600+00:00"
     }
   ],
   "stats": {
-    "total_videos": 22,
-    "total_scripts": 26,
-    "total_searches": 26
+    "total_videos": 23,
+    "total_scripts": 27,
+    "total_searches": 27
   }
 }

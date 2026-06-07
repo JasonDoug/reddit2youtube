@@ -890,11 +890,100 @@
       "likes": 0,
       "comments": 0,
       "timestamp": "2026-06-07T03:31:03.894600+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "month",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:03:50.761528+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for \"humiliating\" my ex's new girlfriend in front of our friend group?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 137,
+      "timestamp": "2026-06-07T04:03:56.773837+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "month",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:07:02.815134+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for \"humiliating\" my ex's new girlfriend in front of our friend group?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 137,
+      "timestamp": "2026-06-07T04:07:09.072216+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for \"humiliating\" my ex's new girlfriend in front of our friend group?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 68.1,
+      "file_size_mb": 13.99,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for__humiliating__my_ex_s_new_girlf_20260607_040920.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_e38e8647.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-07T04:10:06.204018+00:00"
+    },
+    {
+      "type": "search",
+      "subreddits": [
+        "Amitheasshole"
+      ],
+      "time_filter": "week",
+      "result_count": 5,
+      "timestamp": "2026-06-07T04:12:56.778228+00:00"
+    },
+    {
+      "type": "script",
+      "post_title": "AITA for telling my housemate she owes me new bedsheets?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "word_count": 147,
+      "timestamp": "2026-06-07T04:13:01.829369+00:00"
+    },
+    {
+      "type": "video",
+      "post_title": "AITA for telling my housemate she owes me new bedsheets?",
+      "platform": "YouTube Shorts",
+      "genre": "Entertaining / Funny",
+      "duration_sec": 67.4,
+      "file_size_mb": 14.41,
+      "video_path": "/home/runner/workspace/redditvideo/output/videos/AITA_for_telling_my_housemate_she_owes_m_20260607_041512.mp4",
+      "audio_path": "/home/runner/workspace/redditvideo/output/audio/voiceover_ed966657.mp3",
+      "num_images": 6,
+      "published": false,
+      "publish_url": "",
+      "youtube_video_id": "",
+      "youtube_url": "",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "timestamp": "2026-06-07T04:15:57.444687+00:00"
     }
   ],
   "stats": {
-    "total_videos": 23,
-    "total_scripts": 27,
-    "total_searches": 27
+    "total_videos": 25,
+    "total_scripts": 30,
+    "total_searches": 30
   }
 }

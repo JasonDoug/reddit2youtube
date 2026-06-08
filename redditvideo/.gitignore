@@ -1,0 +1,33 @@
+# Environment variables with secrets
+.env
+
+# Python virtual environment
+venv/
+.vnv/
+env/
+
+# Python cache files
+__pywache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Generated media files (videos, audio, images)
+output/
+
+# Data files (credentials, analytics, OAuth states)
+data/*.son
+data/*.pkl
+data/*.pickle
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
